@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>即時投票展示系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // 這是你的鑰匙，我已經幫你填好了
+        const firebaseConfig = {
+            apiKey: "AIzaSyAt_319BG9mDYgbeZJhCWz52iMfdnaTbTE",
+            authDomain: "voting-event.firebaseapp.com",
+            databaseURL: "https://voting-event-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "voting-event",
+            storageBucket: "voting-event.firebasestorage.app",
+            messagingSenderId: "680113677727",
+            appId: "1:680113677727:web:8dc23a48f35b0bcb0b09aa"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        const { useState, useEffect } = React;
+        const { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = Recharts;
+
+        const COLORS = ['#22c55e', '#3b82f6', '#f97316', '#8b5cf6', '#ec4899', '#14b8a6'];
+
+        function App() {
+            const [poll, setPoll] = useState(null);
+            const [showCharts, setShowCharts] = useState(true);
+
+            useEffect(() => {
+                const pollRef = ref(db, 'polls/current');
+                return onValue(pollRef, (snapshot) => {
+                    setPoll(snapshot.val());
+                });
+            }, []);
+
+            if (!poll) return <div className="flex h-screen items-center justify-center text-2xl font-bold text-slate-400">等待題目開啟中...</div>;
+
+            // 整理數據：讓文字完整呈現，票數即時更新
+            const data = poll.options?.map((opt, index) => ({
+                name: opt.text || opt.label || `選項 ${index + 1}`,
+                value: poll.votes ? Object.values(poll.votes).filter(v => v.optionIndex === index).length : 0
+            })) || [];
+
+            return (
+                <div className="min-h-screen bg-slate-900 p-6 md:p-12 text-white font-sans">
+                    {/* 頂部控制列 */}
+                    <div className="max-w-7xl mx-auto mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                        <div className="flex-1">
+                            <h2 className="text-blue-400 text-sm font-black tracking-widest uppercase mb-2">LIVE POLL</h2>
+                            <h1 className="text-3xl md:text-5xl font-extrabold leading-tight">{poll.question}</h1>
+                        </div>
+                        <button 
+                            onClick={() => setShowCharts(!showCharts)}
+                            className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-black shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:scale-105 transition-all active:scale-95 whitespace-nowrap text-lg"
+                        >
+                            {showCharts ? "👀 隱藏圖表" : "📊 顯示圖表"}
+                        </button>
+                    </div>
+
+                    <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-10">
+                        {/* 左側：投票清單（文字會自動換行，且自動調整寬度） */}
+                        <div className={`transition-all duration-700 ${showCharts ? 'lg:w-1/2' : 'w-full'}`}>
+                            <div className="bg-slate-800/50 backdrop-blur-xl rounded-3xl p-8 border border-white/10 shadow-2xl">
+                                <div className="space-y-6">
+                                    {data.map((entry, index) => (
+                                        <div key={index} className="flex items-start justify-between p-6 bg-white/5 rounded-2xl border border-white/5">
+                                            <div className="text-xl md:text-2xl font-bold break-words flex-1 pr-6 leading-snug">
+                                                <span className="text-blue-500 mr-3">{index + 1}.</span>
+                                                {entry.name}
+                                            </div>
+                                            <div className="text-3xl font-black text-blue-400 tabular-nums">
+                                                {entry.value} <span className="text-sm font-normal opacity-40">票</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 右側：圖表區 */}
+                        {showCharts && (
+                            <div className="lg:w-1/2 space-y-8 flex flex-col">
+                                <div className="bg-slate-800/50 backdrop-blur-xl rounded-3xl p-6 h-[400px] border border-white/10 shadow-2xl">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie data={data} cx="50%" cy="50%" innerRadius={80} outerRadius={140} paddingAngle={5} dataKey="value">
+                                                {data.map((_, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip contentStyle={{backgroundColor: '#1e293b', border: 'none', borderRadius: '12px', color: '#fff'}} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                <div className="bg-slate-800/50 backdrop-blur-xl rounded-3xl p-6 h-[300px] border border-white/10 shadow-2xl text-slate-900">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={data}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff10" />
+                                            <XAxis dataKey="name" hide />
+                                            <YAxis stroke="#ffffff40" />
+                                            <Tooltip cursor={{fill: '#ffffff05'}} contentStyle={{backgroundColor: '#1e293b', border: 'none', borderRadius: '12px', color: '#fff'}} />
+                                            <Bar dataKey="value" radius={[10, 10, 0, 0]}>
+                                                {data.map((_, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+    </script>
+    <style>
+        body { background-color: #0f172a; margin: 0; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+</body>
+</html>
