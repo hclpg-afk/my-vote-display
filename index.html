@@ -1,191 +1,171 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <title>綜藝展示端 - 最終救援版</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
-        body { 
-            background: radial-gradient(circle at center, #3c2a7a 0%, #0c0a2a 100%);
-            font-family: 'Noto Sans TC', sans-serif;
-            overflow: hidden;
-        }
-        /* 綜藝感霓虹卡片 */
-        .neon-card { 
-            background: rgba(255, 255, 255, 0.03); 
-            backdrop-filter: blur(20px); 
-            border: 2px solid rgba(255, 255, 255, 0.08); 
-            border-radius: 2.5rem;
-            transition: all 0.5s ease;
-        }
-        /* 圓餅圖呼吸燈 Class */
-        .chart-glow { box-shadow: 0 0 40px rgba(74, 222, 128, 0.3); }
-        
-        /* 動態長條圖高度動畫 */
-        .bar-anim { transition: height 1s cubic-bezier(0.34, 1.56, 0.64, 1); }
+<meta charset="UTF-8">
+<title>綜藝展示端 - 完整版</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
 
-        /* 解答區展開動畫 Class */
-        .answer-reveal {
-            animation: slideDown 0.7s forwards;
-            border-color: #facc15;
-            box-shadow: 0 0 30px rgba(250, 204, 21, 0.3);
-        }
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-20px); height: 0; }
-            to { opacity: 1; transform: translateY(0); height: auto; }
-        }
-        .btn-active { background: #3b82f6; color: white; border-color: transparent; }
-    </style>
+body { 
+    background: radial-gradient(circle at center, #3c2a7a 0%, #0c0a2a 100%);
+    font-family: 'Noto Sans TC', sans-serif;
+    overflow: hidden;
+}
+
+.neon-card { 
+    background: rgba(255, 255, 255, 0.03); 
+    backdrop-filter: blur(20px); 
+    border: 2px solid rgba(255, 255, 255, 0.08); 
+    border-radius: 2.5rem;
+    transition: all 0.5s ease;
+}
+
+.chart-glow { box-shadow: 0 0 40px rgba(74, 222, 128, 0.3); }
+.bar-anim { transition: height 1s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+.answer-reveal {
+    animation: slideDown 0.7s forwards;
+    border-color: #facc15;
+    box-shadow: 0 0 30px rgba(250, 204, 21, 0.3);
+}
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-20px); height: 0; }
+    to { opacity: 1; transform: translateY(0); height: auto; }
+}
+
+.btn-active { background: #3b82f6; color: white; border-color: transparent; }
+</style>
 </head>
-<body class="text-white min-h-screen p-12">
-    <div id="root" class="max-w-[1550px] mx-auto"></div>
+<body class="text-white min-h-screen p-8">
+<div id="root" class="max-w-[1550px] mx-auto"></div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAt_319BG9mDYgbeZJhCWz52iMfdnaTbTE",
-            authDomain: "voting-event.firebaseapp.com",
-            databaseURL: "https://voting-event-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "voting-event",
-            storageBucket: "voting-event.firebasestorage.app",
-            messagingSenderId: "680113677727",
-            appId: "1:680113677727:web:8dc23a48f35b0bcb0b09aa"
-        };
+const firebaseConfig = {
+    apiKey: "AIzaSyAt_319BG9mDYgbeZJhCWz52iMfdnaTbTE",
+    authDomain: "voting-event.firebaseapp.com",
+    databaseURL: "https://voting-event-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "voting-event",
+    storageBucket: "voting-event.firebasestorage.app",
+    messagingSenderId: "680113677727",
+    appId: "1:680113677727:web:8dc23a48f35b0bcb0b09aa"
+};
 
-        initializeApp(firebaseConfig);
-        const db = getDatabase();
+initializeApp(firebaseConfig);
+const db = getDatabase();
 
-        // UI 狀態 (製作人控制項)
-        window.uiState = { currentChart: 'bar', answerVisible: false };
-        let lastRawData = null;
+window.uiState = { currentChart: 'bar', answerVisible: false };
+let lastRawData = null;
 
-        const renderView = () => {
-            if (!lastRawData) return;
-            const target = Object.values(lastRawData).find(p => p.isActive) || Object.values(lastRawData)[0];
-            const options = Object.values(target.options || {});
-            const totalVotes = options.reduce((s, o) => s + (Number(o.voteCount) || 0), 0);
-            
-            // 抓取專家解答資料 (增加容錯路徑)
-            const expertMsg = target.expertAnalysis || target.analysis || "解析文字尚未輸入。";
+const renderView = () => {
+    if (!lastRawData) return;
+    const target = Object.values(lastRawData).find(p => p.isActive) || Object.values(lastRawData)[0];
+    const options = Object.values(target.options || {});
+    const totalVotes = options.reduce((s,o)=>s+Number(o.voteCount||0),0);
+    
+    // 抓專家答案多個可能 key
+    const expertMsg = target.expertAnalysis ?? target.analysis ?? target.expertAnalysisText ?? "解析文字尚未輸入。";
 
-            const rootElement = document.getElementById('root');
-            const state = window.uiState;
+    const state = window.uiState;
+    const root = document.getElementById('root');
 
-            // 圓餅圖 SVG (甜甜圈樣式)
-            const totalSlices = options.length;
-            const radius = 1;
-            let cumulativePercent = 0;
-            const pieSlices = options.map((opt, i) => {
-                const percent = totalVotes > 0 ? (Number(opt.voteCount) / totalVotes) : 0;
-                const startX = Math.cos(2 * Math.PI * cumulativePercent);
-                const startY = Math.sin(2 * Math.PI * cumulativePercent);
-                cumulativePercent += percent;
-                const endX = Math.cos(2 * Math.PI * cumulativePercent);
-                const endY = Math.sin(2 * Math.PI * cumulativePercent);
-                const largeArc = percent > 0.5 ? 1 : 0;
-                return `<path d="M 0 0 L ${startX} ${startY} A 1 1 0 ${largeArc} 1 ${endX} ${endY} Z" fill="${['#10b981','#3b82f6','#fb923c','#f472b6'][i % 4]}"></path>`;
-            }).join('');
+    const pieSlices = (() => {
+        let cumulativePercent = 0;
+        return options.map((opt,i)=>{
+            const percent = totalVotes>0?Number(opt.voteCount)/totalVotes:0;
+            const startX = Math.cos(2*Math.PI*cumulativePercent);
+            const startY = Math.sin(2*Math.PI*cumulativePercent);
+            cumulativePercent += percent;
+            const endX = Math.cos(2*Math.PI*cumulativePercent);
+            const endY = Math.sin(2*Math.PI*cumulativePercent);
+            const largeArc = percent>0.5?1:0;
+            return `<path d="M0 0 L${startX} ${startY} A1 1 0 ${largeArc} 1 ${endX} ${endY} Z" fill="${['#10b981','#3b82f6','#fb923c','#f472b6'][i%4]}"></path>`;
+        }).join('');
+    })();
 
-            rootElement.innerHTML = `
-                <div class="flex justify-between items-center mb-10">
-                    <div class="flex items-center gap-3">
-                        <span class="bg-red-600 px-4 py-1.5 rounded-full text-xs font-black animate-pulse shadow-[0_0_20px_rgba(220,38,38,0.5)]">● LIVE REPORT</span>
-                        <div class="h-[2px] w-20 bg-white/10 ml-3"></div>
-                        <span class="text-sm font-bold opacity-50 ml-2">已投 ${totalVotes} 票</span>
-                    </div>
-                    
-                    <div class="flex gap-2 p-2 neon-card !rounded-2xl border-white/5">
-                        <button onclick="window.setChart('bar')" class="px-5 py-2.5 rounded-xl text-sm font-bold ${state.currentChart==='bar'?'btn-active':'opacity-50 hover:opacity-100'}">長條圖</button>
-                        <button onclick="window.setChart('pie')" class="px-5 py-2.5 rounded-xl text-sm font-bold ${state.currentChart==='pie'?'btn-active':'opacity-50 hover:opacity-100'}">圓餅圖</button>
-                        <button onclick="window.setChart('none')" class="px-5 py-2.5 rounded-xl text-sm font-bold ${state.currentChart==='none'?'btn-active':'opacity-50 hover:opacity-100'}">隱藏圖表</button>
-                    </div>
+    root.innerHTML = `
+    <div class="flex justify-between items-center mb-6">
+        <div class="flex items-center gap-3">
+            <span class="bg-red-600 px-3 py-1.5 rounded-full text-xs font-black animate-pulse shadow-[0_0_20px_rgba(220,38,38,0.5)]">● LIVE</span>
+            <span class="text-sm font-bold opacity-50 ml-2">已投 ${totalVotes} 票</span>
+        </div>
+        <div class="flex gap-2 p-2 neon-card !rounded-2xl border-white/5">
+            <button onclick="setChart('bar')" class="px-4 py-2 rounded-xl text-sm font-bold ${state.currentChart==='bar'?'btn-active':'opacity-50'}">長條圖</button>
+            <button onclick="setChart('pie')" class="px-4 py-2 rounded-xl text-sm font-bold ${state.currentChart==='pie'?'btn-active':'opacity-50'}">圓餅圖</button>
+            <button onclick="setChart('none')" class="px-4 py-2 rounded-xl text-sm font-bold ${state.currentChart==='none'?'btn-active':'opacity-50'}">隱藏圖表</button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-12 gap-6 items-start">
+        <div class="${state.currentChart==='none'?'hidden lg:block':'lg:col-span-5'} max-h-[80vh] overflow-y-auto neon-card p-4 relative">
+            ${state.currentChart==='bar' ? `
+            <div class="flex items-end justify-around w-full h-full">
+                ${options.map((opt,i)=>{
+                    const h = totalVotes>0?Number(opt.voteCount)/totalVotes*90:5;
+                    return `<div class="flex flex-col items-center gap-2 w-full h-full justify-end">
+                        <span class="text-lg font-black">${opt.voteCount}</span>
+                        <div class="bar-anim w-12 bg-emerald-500 rounded-t-2xl shadow-lg shadow-emerald-500/20" style="height:${h}%"></div>
+                        <span class="opacity-30 text-sm font-bold">${String.fromCharCode(65+i)}</span>
+                    </div>`;
+                }).join('')}
+            </div>` : `
+            <div class="relative w-full h-96 flex items-center justify-center">
+                <svg viewBox="-1.1 -1.1 2.2 2.2" class="w-full h-full -rotate-90 chart-glow">
+                    ${pieSlices}
+                    <circle r="0.6" fill="#0c0a2a" />
+                </svg>
+                <div class="absolute flex flex-col items-center">
+                    <span class="text-sm opacity-40">總票數</span>
+                    <span class="text-4xl font-black">${totalVotes}</span>
                 </div>
+            </div>`}
+        </div>
 
-                <div class="grid grid-cols-12 gap-10 items-start">
-                    <div class="col-span-12 lg:col-span-5 ${state.currentChart === 'none' ? 'hidden' : ''}">
-                        <div class="neon-card p-12 h-[500px] flex items-center justify-center pt-20">
-                            ${state.currentChart === 'bar' ? `
-                                <div class="flex items-end justify-around w-full h-full">
-                                    ${options.map((opt, i) => {
-                                        const h = totalVotes > 0 ? (Number(opt.voteCount) / totalVotes * 90) : 5;
-                                        return `
-                                            <div class="flex flex-col items-center gap-5 w-full h-full justify-end">
-                                                <span class="text-xl font-black">${opt.voteCount}</span>
-                                                <div class="bar-anim w-16 bg-emerald-500 rounded-t-2xl shadow-lg shadow-emerald-500/20" style="height: ${h}%"></div>
-                                                <span class="opacity-30 text-sm font-bold">${String.fromCharCode(65+i)}</span>
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            ` : `
-                                <svg viewBox="-1.1 -1.1 2.2 2.2" class="h-full w-full -rotate-90 chart-glow">
-                                    ${pieSlices}
-                                    <circle r="0.6" fill="#0c0a2a" /> </svg>
-                                <div class="absolute flex flex-col items-center">
-                                    <span class="text-sm opacity-40">總票數</span>
-                                    <span class="text-6xl font-black">${totalVotes}</span>
-                                </div>
-                            `}
-                        </div>
+        <div class="${state.currentChart==='none'?'lg:col-span-12':'lg:col-span-7'} max-h-[80vh] overflow-y-auto space-y-4">
+            <h1 class="text-4xl font-black mb-6 leading-tight">${target.question}</h1>
+            ${options.map((opt,i)=>{
+                const per = totalVotes>0?Math.round(Number(opt.voteCount)/totalVotes*100):0;
+                const colors=['border-green-500 text-green-400','border-blue-500 text-blue-400','border-orange-500 text-orange-400'];
+                return `<div class="neon-card p-4 flex justify-between items-center border-l-4 ${colors[i%3].split(' ')[0]}">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold ${colors[i%3]} bg-white/5 border border-current/20">${String.fromCharCode(65+i)}</div>
+                        <span class="text-xl font-bold">${opt.text||opt.label}</span>
                     </div>
-
-                    <div class="${state.currentChart === 'none' ? 'lg:col-span-12 max-w-4xl mx-auto w-full' : 'lg:col-span-7'} space-y-8">
-                        <h1 class="text-5xl font-black mb-16 leading-tight max-w-4xl">${target.question}</h1>
-                        
-                        ${options.map((opt, i) => {
-                            const per = totalVotes > 0 ? Math.round(Number(opt.voteCount)/totalVotes*100) : 0;
-                            const colors = ['border-green-500 text-green-400','border-blue-500 text-blue-400','border-orange-500 text-orange-400'];
-                            return `
-                                <div class="neon-card p-6 flex justify-between items-center px-10 border-l-4 ${colors[i%3].split(' ')[0]}">
-                                    <div class="flex items-center gap-6">
-                                        <div class="w-12 h-12 rounded-full flex items-center justify-center font-bold ${colors[i%3]} bg-white/5 border border-current/20">${String.fromCharCode(65+i)}</div>
-                                        <span class="text-2xl font-bold">${opt.text || opt.label}</span>
-                                    </div>
-                                    <div class="text-right">
-                                        <div class="text-4xl font-black">${opt.voteCount} <span class="text-base opacity-40 font-normal">票</span></div>
-                                        <div class="text-[10px] opacity-30 font-mono tracking-tighter">${per}%</div>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-
-                        <div class="pt-6 relative">
-                            <button onclick="window.revealAnswer()" class="w-full bg-gradient-to-r from-yellow-500 to-orange-600 shadow-[0_5px_30px_rgba(249,115,22,0.4)] py-6 rounded-2xl text-2xl font-black flex items-center justify-center gap-3 transition-transform active:scale-95">
-                                💡 公佈答案
-                            </button>
-                        </div>
-
-                        <div class="answer-reveal ${state.answerVisible ? 'answer-reveal' : 'hidden'} neon-card p-10 bg-yellow-400/5 mt-8 border-2 border-dashed">
-                            <div class="flex items-center justify-between mb-8">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-12 h-12 rounded-full bg-yellow-400 text-black flex items-center justify-center text-xl">💡</div>
-                                    <h2 class="text-3xl font-black text-yellow-400 uppercase tracking-widest">Expert Analysis</h2>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <div class="bg-white/5 px-3 py-1 rounded-full text-[10px] opacity-40">慢 正常 快 很快</div>
-                                    <button class="bg-yellow-400 text-black px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">🔊 朗讀</button>
-                                </div>
-                            </div>
-                            <p class="text-2xl leading-relaxed text-yellow-50/90 font-medium">${expertMsg}</p>
-                            <button onclick="window.revealAnswer()" class="mt-8 opacity-20 text-[10px] underline hover:opacity-100">隱藏解答</button>
-                        </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-black">${opt.voteCount} <span class="text-base opacity-40 font-normal">票</span></div>
+                        <div class="text-xs opacity-30 font-mono">${per}%</div>
                     </div>
-                </div>
-            `;
-        };
+                </div>`;
+            }).join('')}
 
-        // 按鈕事件全域函數
-        window.setChart = (chartType) => { window.uiState.currentChart = chartType; renderView(); };
-        window.revealAnswer = () => { window.uiState.answerVisible = !window.uiState.answerVisible; renderView(); };
+            <div class="pt-2">
+                <button onclick="revealAnswer()" class="w-full bg-gradient-to-r from-yellow-500 to-orange-600 py-3 rounded-2xl text-lg font-black flex items-center justify-center gap-2 active:scale-95">
+                    💡 公佈答案
+                </button>
+            </div>
 
-        // 數據同步
-        onValue(ref(db, 'polls'), (snapshot) => {
-            lastRawData = snapshot.val();
-            renderView();
-        });
-    </script>
+            <div class="neon-card mt-4 p-4 border-2 border-dashed ${state.answerVisible?'':'hidden'}">
+                <h2 class="text-xl font-black text-yellow-400 mb-2">專家解答</h2>
+                <p class="text-base font-medium text-yellow-50/90">${expertMsg}</p>
+                <button onclick="revealAnswer()" class="mt-2 text-xs opacity-50 underline">隱藏解答</button>
+            </div>
+        </div>
+    </div>
+    `;
+};
+
+// 全域函數
+window.setChart = (type)=>{ window.uiState.currentChart=type; renderView(); };
+window.revealAnswer = ()=>{ window.uiState.answerVisible=!window.uiState.answerVisible; renderView(); };
+
+// 監聽 Firebase
+onValue(ref(db,'polls'), snapshot=>{
+    lastRawData = snapshot.val();
+    renderView();
+});
+</script>
 </body>
 </html>
