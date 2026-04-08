@@ -1,209 +1,194 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <title>現場投票系統 - 專業流光版</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&display=swap');
-        
-        body { 
-            background: radial-gradient(circle at 50% -20%, #1e1b4b 0%, transparent 60%), #020617;
-            font-family: 'Noto Sans TC', sans-serif;
-            color: #ffffff; height: 100vh; margin: 0; padding: 1.5rem 2rem;
-            display: flex; flex-direction: column; overflow: hidden;
-        }
+<meta charset="UTF-8">
+<title>投票系統｜節目控制台版</title>
+<script src="https://cdn.tailwindcss.com"></script>
 
-        /* 題幹：字體細、空間大 */
-        .question-box {
-            background: rgba(255, 255, 255, 0.02);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 2.5rem;
-            min-height: 30vh;
-            display: flex; align-items: center; justify-content: center;
-        }
+<style>
+body {
+    background: #020617;
+    font-family: 'Noto Sans TC', sans-serif;
+    color: white;
+    height: 100vh;
+    margin: 0;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
 
-        /* 選項卡片 */
-        .option-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 1.5rem;
-            padding: 0 2.5rem;
-            height: 100%;
-            display: flex; align-items: center;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .option-card.leading {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: #fbbf24;
-            box-shadow: 0 0 40px rgba(251, 191, 36, 0.1);
-            transform: scale(1.02);
-        }
+/* 動態字體 */
+.fit-text {
+    font-size: clamp(1rem, 2.2vw, 2rem);
+}
+.title-text {
+    font-size: clamp(1.8rem, 3vw, 3rem);
+}
 
-        /* 流光按鈕動畫 */
-        .shimmer-btn {
-            position: relative;
-            overflow: hidden;
-            background: linear-gradient(90deg, #4f46e5, #9333ea, #db2777);
-            background-size: 200% auto;
-            animation: shimmerMove 3s linear infinite;
-        }
-        @keyframes shimmerMove {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 200% 50%; }
-        }
-        .shimmer-btn::after {
-            content: "";
-            position: absolute;
-            top: -50%; left: -50%; width: 200%; height: 200%;
-            background: linear-gradient(60deg, transparent, rgba(255,255,255,0.2), transparent);
-            transform: rotate(45deg);
-            animation: lightPass 4s infinite;
-        }
-        @keyframes lightPass {
-            0% { transform: translateX(-100%) rotate(45deg); }
-            100% { transform: translateX(100%) rotate(45deg); }
-        }
+/* 卡片 */
+.option-card {
+    background: rgba(255,255,255,0.05);
+    border-radius: 1rem;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    overflow: hidden;
+    transition: .3s;
+}
+.option-card.leading {
+    border: 1px solid gold;
+    transform: scale(1.02);
+}
 
-        /* 揭曉視窗動畫 */
-        .reveal-overlay {
-            position: fixed; inset: 0; z-index: 1000;
-            background: rgba(2, 6, 23, 0.98);
-            display: none; align-items: center; justify-content: center;
-            opacity: 0; transition: all 0.6s ease;
-        }
-        .reveal-overlay.active {
-            display: flex; opacity: 1;
-        }
-        .reveal-content {
-            transform: scale(0.8) translateY(20px);
-            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        .reveal-overlay.active .reveal-content {
-            transform: scale(1) translateY(0);
-        }
+/* 限制文字 */
+.auto-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
 
-        /* 長條圖升起動畫 */
-        .bar-anim {
-            transition: height 1.2s cubic-bezier(0.17, 0.67, 0.83, 0.67);
-        }
-    </style>
+/* 圖表動畫 */
+.bar {
+    transition: height 1s ease;
+}
+
+/* overlay */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.95);
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+.overlay.active {
+    display: flex;
+}
+</style>
 </head>
+
 <body>
 
-    <div id="root" class="h-full flex flex-col gap-6"></div>
+<div id="root" class="flex-1 flex flex-col gap-4"></div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        const firebaseConfig = {
-            databaseURL: "https://voting-event-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "voting-event"
-        };
+const firebaseConfig = {
+    databaseURL: "https://voting-event-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "voting-event"
+};
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-        window.ui = { showAnswer: false, chart: 'bar' };
-        const colors = ['#818cf8', '#34d399', '#fbbf24', '#f472b6'];
+/* 控制台狀態 */
+window.ui = {
+    showAnswer: false,
+    showChart: true
+};
 
-        const findAnalysis = (poll) => {
-            let longest = "";
-            const scan = (item) => {
-                if (typeof item === 'string' && item !== poll.question) {
-                    if (item.length > longest.length) longest = item;
-                } else if (item && typeof item === 'object') {
-                    Object.values(item).forEach(scan);
-                }
-            };
-            scan(poll);
-            return longest || "分析資料準備中...";
-        };
+/* 正確抓分析 */
+const getAnalysis = (poll) => {
+    return poll.expertAnalysis || "尚無專家分析";
+};
 
-        const render = () => {
-            if (!window.rawData) return;
-            const activeEntry = Object.entries(window.rawData).find(([id, p]) => p.isActive === true);
-            if (!activeEntry) {
-                document.getElementById('root').innerHTML = `<div class="h-full flex items-center justify-center opacity-30 text-2xl font-light">等待題目啟動...</div>`;
-                return;
-            }
+/* 主渲染 */
+const render = () => {
+    if (!window.rawData) return;
 
-            const [id, poll] = activeEntry;
-            const options = Object.values(poll.options || {});
-            const total = options.reduce((s, o) => s + (Number(o.voteCount) || 0), 0);
-            const maxVotes = Math.max(...options.map(o => o.voteCount));
-            const analysis = findAnalysis(poll);
+    const active = Object.values(window.rawData).find(p => p.isActive);
+    if (!active) {
+        root.innerHTML = "等待題目...";
+        return;
+    }
 
-            document.getElementById('root').innerHTML = `
-                <div class="flex justify-between items-center shrink-0">
-                    <div class="flex items-center gap-2 bg-red-600/20 px-4 py-1 rounded-full border border-red-600/30">
-                        <div class="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
-                        <span class="text-[10px] font-bold tracking-widest">LIVE 中文直播場</span>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xs opacity-40 mr-2">累計票數</span>
-                        <span class="text-4xl font-light tabular-nums">${total}</span>
-                    </div>
-                </div>
+    const options = Object.values(active.options || {});
+    const total = options.reduce((s,o)=>s+(o.voteCount||0),0);
+    const max = Math.max(...options.map(o=>o.voteCount||0));
+    const analysis = getAnalysis(active);
 
-                <div class="question-box px-16 py-8">
-                    <h1 class="text-4xl md:text-5xl font-light text-center leading-tight text-white/90">${poll.question}</h1>
-                </div>
+    root.innerHTML = `
+    
+    <!-- 上方 -->
+    <div class="flex justify-between items-center">
+        <div>LIVE</div>
+        <div>票數 ${total}</div>
+    </div>
 
-                <div class="flex-1 min-h-0 flex gap-8">
-                    <div class="flex-1 bg-white/[0.02] rounded-[3rem] border border-white/5 p-10 flex items-end justify-around gap-8">
-                        ${options.map((o, i) => {
-                            const h = total > 0 ? (o.voteCount / total * 100) : 5;
-                            return `
-                            <div class="flex-1 flex flex-col items-center h-full justify-end">
-                                <div class="w-full rounded-t-2xl bar-anim" style="height:${h}%; background:${colors[i%4]}; box-shadow: 0 0 30px ${colors[i%4]}33"></div>
-                                <span class="mt-4 text-2xl font-light" style="color:${colors[i%4]}">${String.fromCharCode(65+i)}</span>
-                            </div>`
-                        }).join('')}
-                    </div>
+    <!-- 題目 -->
+    <div class="text-center title-text">${active.question}</div>
 
-                    <div class="w-5/12 flex flex-col gap-4">
-                        ${options.map((o, i) => {
-                            const isLeader = o.voteCount === maxVotes && maxVotes > 0;
-                            return `
-                            <div class="flex-1 min-h-0">
-                                <div class="option-card ${isLeader ? 'leading' : ''}">
-                                    <div class="text-4xl font-light mr-8" style="color:${colors[i%4]}">${String.fromCharCode(65+i)}</div>
-                                    <div class="flex-1 text-2xl font-light">${o.text || o.label}</div>
-                                    ${isLeader ? '<div class="text-3xl ml-4 animate-bounce">👑</div>' : ''}
-                                </div>
-                            </div>`
-                        }).join('')}
+    <!-- 主區 -->
+    <div class="flex-1 flex gap-4 overflow-hidden">
+
+        ${window.ui.showChart ? `
+        <!-- 圖表 -->
+        <div class="flex-[0.8] flex items-end gap-2">
+            ${options.map(o=>{
+                const h = total ? (o.voteCount/total*100) : 5;
+                return `
+                <div class="flex-1 bg-indigo-500 bar" style="height:${h}%"></div>
+                `;
+            }).join("")}
+        </div>
+        ` : ""}
+
+        <!-- 選項 -->
+        <div class="flex-1 flex flex-col gap-2 overflow-hidden">
+            ${options.map((o,i)=>{
+                const lead = o.voteCount===max && max>0;
+                return `
+                <div class="flex-1">
+                    <div class="option-card ${lead?'leading':''}">
+                        <div class="mr-4">${String.fromCharCode(65+i)}</div>
+                        <div class="auto-text fit-text flex-1">${o.text}</div>
                     </div>
                 </div>
+                `;
+            }).join("")}
+        </div>
 
-                <button onclick="window.toggleReveal(true)" class="shimmer-btn w-full h-20 rounded-3xl text-2xl font-bold shadow-2xl">
-                    揭 曉 專 家 權 威 分 析
-                </button>
+    </div>
 
-                <div id="reveal-layer" class="reveal-overlay ${window.ui.showAnswer ? 'active' : ''}">
-                    <div class="reveal-content max-w-4xl text-center px-10">
-                        <p class="text-indigo-400 text-sm tracking-[0.6em] mb-12 opacity-60">數據分析完成</p>
-                        <h2 class="text-4xl md:text-5xl font-light leading-relaxed mb-24">「 ${analysis} 」</h2>
-                        <button onclick="window.toggleReveal(false)" class="px-16 py-5 rounded-full bg-white text-black font-bold text-xl hover:scale-105 transition">返回投票現場</button>
-                    </div>
-                </div>
-            `;
-        };
+    <!-- 控制按鈕 -->
+    <div class="flex gap-2">
+        <button onclick="toggleChart()">圖表開關</button>
+        <button onclick="toggleAnswer()">揭曉答案</button>
+    </div>
 
-        window.toggleReveal = (s) => {
-            window.ui.showAnswer = s;
-            const el = document.getElementById('reveal-layer');
-            if (s) { el.style.display = 'flex'; setTimeout(() => el.classList.add('active'), 10); }
-            else { el.classList.remove('active'); setTimeout(() => el.style.display = 'none', 600); }
-        };
+    <!-- overlay -->
+    <div id="overlay" class="overlay ${window.ui.showAnswer?'active':''}">
+        <div class="text-center max-w-xl">
+            <h2 class="text-3xl mb-6">專家解析</h2>
+            <p class="text-xl">${analysis}</p>
+            <button onclick="toggleAnswer()">關閉</button>
+        </div>
+    </div>
+    `;
+};
 
-        onValue(ref(db, 'polls'), (snap) => {
-            window.rawData = snap.val();
-            render();
-        });
-    </script>
+/* 控制 */
+window.toggleChart = () => {
+    window.ui.showChart = !window.ui.showChart;
+    render();
+};
+
+window.toggleAnswer = () => {
+    window.ui.showAnswer = !window.ui.showAnswer;
+    render();
+};
+
+/* Firebase */
+onValue(ref(db,'polls'), snap=>{
+    window.rawData = snap.val();
+    render();
+});
+</script>
+
 </body>
 </html>
