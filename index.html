@@ -2,12 +2,22 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>即時投票展示系統</title>
+    <title>進階投票展示系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        body { 
+            background: radial-gradient(circle at top right, #1e293b 0%, #020617 100%);
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .chart-bar { transition: height 1s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .btn-active { background: #3b82f6; color: white; }
+    </style>
 </head>
-<body class="bg-slate-950 text-white p-10 font-sans">
-    <div id="main-display">
-        <h1 class="text-2xl animate-pulse text-blue-400">📡 正在從 polls 資料夾讀取題目...</h1>
+<body class="text-white min-h-screen p-8 md:p-16">
+    <div id="root" class="max-w-7xl mx-auto">
+        <div class="h-screen flex items-center justify-center animate-pulse text-xl tracking-widest">📡 數據同步中...</div>
     </div>
 
     <script type="module">
@@ -26,50 +36,112 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const display = document.getElementById('main-display');
+        
+        // 狀態管理
+        let currentChart = 'bar'; // 'bar', 'pie', 'none'
+        let lastData = null;
 
-        // 精準監聽 polls 路徑，避開根目錄權限限制
-        const pollsRef = ref(db, 'polls');
+        const render = () => {
+            if (!lastData) return;
+            const root = document.getElementById('root');
+            const target = Object.values(lastData).find(p => p.isActive) || Object.values(lastData)[0];
+            const options = target.options ? Object.values(target.options) : [];
+            const totalVotes = options.reduce((sum, o) => sum + (o.voteCount || 0), 0);
 
-        onValue(pollsRef, (snapshot) => {
-            const polls = snapshot.val();
-            if (!polls) {
-                display.innerHTML = "<h1>❌ 讀取成功，但 polls 資料夾裡沒有任何題目</h1>";
-                return;
-            }
+            // 顏色清單
+            const colors = ['#4ade80', '#3b82f6', '#fb923c', '#f472b6', '#a78bfa'];
 
-            // 找出 isActive 為 true 的題目，或最後一個題目
-            const entries = Object.entries(polls);
-            let target = entries.find(([id, val]) => val.isActive === true);
-            if (!target) target = entries[entries.length - 1];
+            // 圓餅圖路徑計算 (SVG)
+            let cumulativePercent = 0;
+            const pieSlices = options.map((opt, i) => {
+                const percent = totalVotes > 0 ? (opt.voteCount / totalVotes) : 0;
+                const startX = Math.cos(2 * Math.PI * cumulativePercent);
+                const startY = Math.sin(2 * Math.PI * cumulativePercent);
+                cumulativePercent += percent;
+                const endX = Math.cos(2 * Math.PI * cumulativePercent);
+                const endY = Math.sin(2 * Math.PI * cumulativePercent);
+                const largeArc = percent > 0.5 ? 1 : 0;
+                return `<path d="M 0 0 L ${startX} ${startY} A 1 1 0 ${largeArc} 1 ${endX} ${endY} Z" fill="${colors[i % colors.length]}"></path>`;
+            }).join('');
 
-            const [id, pollData] = target;
-            
-            let optionsHtml = "";
-            if (pollData.options) {
-                Object.values(pollData.options).forEach(o => {
-                    optionsHtml += `
-                        <div class="p-8 bg-white/5 rounded-[2rem] mb-4 border border-white/10 flex justify-between items-center">
-                            <span class="text-3xl font-bold">${o.text || o.label || "選項"}</span>
-                            <span class="text-4xl font-black text-blue-400">${o.voteCount || 0} <span class="text-xl font-normal opacity-40">票</span></span>
+            root.innerHTML = `
+                <div class="flex justify-between items-start mb-12">
+                    <div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="bg-red-600 px-4 py-1 rounded-full text-xs font-black animate-pulse">LIVE</span>
+                            <span class="text-slate-400 font-bold uppercase tracking-widest text-sm">Real-time Stats</span>
                         </div>
-                    `;
-                });
-            }
+                        <h1 class="text-6xl font-black leading-tight max-w-4xl">${target.question}</h1>
+                    </div>
+                    
+                    <div class="flex gap-2 glass p-2 rounded-2xl">
+                        <button onclick="window.setChart('bar')" class="px-4 py-2 rounded-xl text-sm font-bold transition ${currentChart==='bar'?'btn-active':'hover:bg-white/10'}">長條圖</button>
+                        <button onclick="window.setChart('pie')" class="px-4 py-2 rounded-xl text-sm font-bold transition ${currentChart==='pie'?'btn-active':'hover:bg-white/10'}">圓餅圖</button>
+                        <button onclick="window.setChart('none')" class="px-4 py-2 rounded-xl text-sm font-bold transition ${currentChart==='none'?'btn-active':'hover:bg-white/10'}">隱藏圖表</button>
+                    </div>
+                </div>
 
-            display.innerHTML = `
-                <div class="max-w-4xl mx-auto">
-                    <p class="text-blue-500 font-black mb-2">LIVE VOTING</p>
-                    <h1 class="text-5xl md:text-7xl font-black mb-12 tracking-tight">${pollData.question || "未命名題目"}</h1>
-                    <div class="grid gap-4">${optionsHtml}</div>
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                    <div class="lg:col-span-7 ${currentChart === 'none' ? 'hidden' : ''}">
+                        <div class="glass rounded-[3rem] p-12 h-[500px] flex items-center justify-center">
+                            ${currentChart === 'bar' ? `
+                                <div class="flex items-end justify-around w-full h-full pt-10">
+                                    ${options.map((opt, i) => {
+                                        const h = totalVotes > 0 ? (opt.voteCount / totalVotes * 90) : 5;
+                                        return `
+                                            <div class="flex flex-col items-center gap-6 w-full group">
+                                                <span class="text-2xl font-black">${opt.voteCount}</span>
+                                                <div class="chart-bar w-20 rounded-t-3xl shadow-lg shadow-blue-500/20" 
+                                                     style="height: ${h}%; background: ${colors[i % colors.length]}"></div>
+                                                <span class="text-slate-500 font-bold">${String.fromCharCode(65+i)}</span>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            ` : `
+                                <svg viewBox="-1.1 -1.1 2.2 2.2" class="h-full w-full -rotate-90 drop-shadow-2xl">
+                                    ${pieSlices}
+                                    <circle r="0.6" fill="#0f172a" /> </svg>
+                                <div class="absolute flex flex-col items-center">
+                                    <span class="text-sm opacity-50">總票數</span>
+                                    <span class="text-5xl font-black">${totalVotes}</span>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+
+                    <div class="${currentChart === 'none' ? 'lg:col-span-12 max-w-4xl mx-auto w-full' : 'lg:col-span-5'}">
+                        <div class="space-y-4">
+                            ${options.map((opt, i) => {
+                                const per = totalVotes > 0 ? Math.round(opt.voteCount/totalVotes*100) : 0;
+                                return `
+                                    <div class="glass rounded-[2rem] p-6 flex justify-between items-center border-l-8" style="border-left-color: ${colors[i % colors.length]}">
+                                        <div class="flex items-center gap-6">
+                                            <span class="text-4xl font-black opacity-20">${i+1}</span>
+                                            <span class="text-2xl font-bold tracking-tight">${opt.text || opt.label}</span>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-3xl font-black text-blue-400">${opt.voteCount} <span class="text-sm opacity-50">票</span></div>
+                                            <div class="text-xs font-mono opacity-30">${per}%</div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
                 </div>
             `;
-        }, (err) => {
-            display.innerHTML = `<div class="p-10 bg-red-500/10 border border-red-500/50 rounded-2xl">
-                <h1 class="text-red-500 text-2xl font-bold mb-2">❌ 存取失敗</h1>
-                <p class="opacity-70">Firebase 訊息: ${err.message}</p>
-                <p class="mt-4 text-sm">請確認資料庫 Rules 是否包含 "polls": { ".read": true }</p>
-            </div>`;
+        };
+
+        // 全域切換函數
+        window.setChart = (type) => {
+            currentChart = type;
+            render();
+        };
+
+        onValue(ref(db, 'polls'), (snapshot) => {
+            lastData = snapshot.val();
+            render();
         });
     </script>
 </body>
