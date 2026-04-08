@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>THE ULTIMATE SHOW - 穩定最終版</title>
+    <title>THE ULTIMATE SHOW - 完美整合版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@700;900&display=swap');
@@ -12,13 +12,13 @@
             font-family: 'Noto Sans TC', sans-serif;
             color: #fff;
             height: 100vh;
-            overflow: hidden; /* 防止出現捲軸 */
+            overflow: hidden;
             margin: 0;
             display: flex;
             flex-direction: column;
         }
 
-        /* 綜藝感標題：立體感、發光 */
+        /* 👑 綜藝感標題 */
         .header-box {
             background: linear-gradient(180deg, #4facfe 0%, #00f2fe 100%);
             padding: 4px;
@@ -27,11 +27,11 @@
         }
         .header-content {
             background: #0a0a20;
-            padding: 1.5rem 3rem;
+            padding: 1.2rem 2.5rem;
             border-radius: 1.3rem;
         }
 
-        /* 票數數字：黃金質感 */
+        /* 👑 黃金票數數字 */
         .vote-display {
             font-size: 4rem;
             font-weight: 900;
@@ -42,42 +42,36 @@
             line-height: 1;
         }
 
-        /* 選項按鈕：飽滿佈局 */
+        /* 👑 選項顏色連動 */
+        .icon-A { background: #4ade80 !important; color: #064e3b !important; }
+        .icon-B { background: #3b82f6 !important; color: #1e3a8a !important; }
+        .icon-C { background: #f97316 !important; color: #7c2d12 !important; }
+        
+        .bar-A { background: linear-gradient(to top, #065f46, #4ade80); box-shadow: 0 0 20px rgba(74, 222, 128, 0.3); }
+        .bar-B { background: linear-gradient(to top, #1e40af, #3b82f6); box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+        .bar-C { background: linear-gradient(to top, #9a3412, #f97316); box-shadow: 0 0 20px rgba(249, 115, 22, 0.3); }
+
         .variety-card {
             background: rgba(255, 255, 255, 0.05);
             border: 2px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
-            transition: all 0.3s;
-        }
-        .variety-card:hover {
-            border-color: #00f2fe;
-            background: rgba(255, 255, 255, 0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* 揭曉全屏層 */
+        /* 👑 揭曉全屏層 */
         .reveal-overlay {
             position: fixed;
             inset: 0;
             z-index: 9999;
-            background: rgba(0, 0, 0, 0.95);
-            background-image: radial-gradient(circle, #2d1b69 0%, #000 100%);
+            background: radial-gradient(circle, #2d1b69 0%, #000 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             animation: flashIn 0.5s ease-out;
         }
-        @keyframes flashIn {
-            0% { opacity: 0; transform: scale(1.1); }
-            100% { opacity: 1; transform: scale(1); }
-        }
+        @keyframes flashIn { 0% { opacity: 0; transform: scale(1.1); } 100% { opacity: 1; transform: scale(1); } }
 
-        /* 自動調整圓餅圖大小 */
-        .pie-container {
-            width: 100%;
-            height: 100%;
-            max-width: 400px;
-            max-height: 400px;
-        }
+        .pie-container { width: 100%; height: 100%; max-width: 420px; max-height: 420px; }
     </style>
 </head>
 <body class="p-8">
@@ -101,71 +95,100 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        window.ui = { showAnswer: false, chart: 'bar' };
+        window.ui = { showAnswer: false, chart: 'bar', hideCharts: false };
         let rawData = null;
+        let currentPollId = null;
 
         const render = () => {
             if (!rawData) return;
             const root = document.getElementById('root');
-            const poll = Object.values(rawData).find(p => p.isActive) || Object.values(rawData)[0];
+            const activeEntry = Object.entries(rawData).find(([id, p]) => p.isActive);
             
-            // 🔍 暴力數據抓取機制：搜尋所有可能的解析欄位
-            const getExpertText = (p) => {
-                return p.expertAnalysis || p.analysis || p.expertAnswer || p.answer || p.desc || "數據載入中...";
-            };
-            const expertMsg = getExpertText(poll);
-            
+            if (!activeEntry) {
+                root.innerHTML = `<div class="h-screen flex items-center justify-center text-3xl font-bold animate-pulse">等待題目開啟...</div>`;
+                return;
+            }
+
+            const [pollId, poll] = activeEntry;
+
+            // 自動換題重置
+            if (currentPollId !== pollId) {
+                currentPollId = pollId;
+                window.ui.showAnswer = false;
+                window.ui.hideCharts = false;
+                window.speechSynthesis.cancel();
+            }
+
             const options = Object.values(poll.options || {});
             const total = options.reduce((s, o) => s + (Number(o.voteCount) || 0), 0);
+            const expertMsg = poll.expertAnalysis || poll.analysis || poll.answer || "解析準備中...";
 
             root.innerHTML = `
-                <div class="header-box self-center mb-10">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center gap-4 bg-black/40 px-6 py-2 rounded-full border border-white/10">
+                        <span class="flex h-3 w-3 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-red-600"></span>
+                        </span>
+                        <span class="text-xs font-black tracking-widest uppercase">Live 現場連線</span>
+                        <div class="w-[1px] h-4 bg-white/20 mx-2"></div>
+                        <span class="text-sm font-bold text-white/60">總投票數：<span class="text-white text-xl">${total}</span></span>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button onclick="window.setUI('bar')" class="px-5 py-2 rounded-xl text-xs font-black transition ${window.ui.chart==='bar' && !window.ui.hideCharts ?'bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.5)]':'bg-white/10 text-white/40'}">長條圖</button>
+                        <button onclick="window.setUI('pie')" class="px-5 py-2 rounded-xl text-xs font-black transition ${window.ui.chart==='pie' && !window.ui.hideCharts ?'bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.5)]':'bg-white/10 text-white/40'}">圓餅圖</button>
+                        <button onclick="window.toggleHide()" class="px-5 py-2 rounded-xl text-xs font-black transition ${window.ui.hideCharts?'bg-red-600':'bg-white/10 text-white/40'}">${window.ui.hideCharts?'顯示圖表':'隱藏圖表'}</button>
+                    </div>
+                </div>
+
+                <div class="header-box self-center mb-8">
                     <div class="header-content">
                         <h1 class="text-5xl font-black tracking-tight text-white">Q: ${poll.question}</h1>
                     </div>
                 </div>
 
-                <div class="flex-1 grid grid-cols-12 gap-10 items-center overflow-hidden mb-6">
+                <div class="flex-1 grid ${window.ui.hideCharts ? 'grid-cols-1' : 'grid-cols-12'} gap-8 items-center overflow-hidden mb-6">
                     
+                    ${!window.ui.hideCharts ? `
                     <div class="col-span-6 bg-white/5 rounded-[2.5rem] p-10 h-full flex flex-col items-center justify-center border border-white/10 relative">
-                        <div class="absolute top-6 right-6 flex gap-2">
-                            <button onclick="window.setUI('bar')" class="px-4 py-2 rounded-lg text-xs font-bold ${window.ui.chart==='bar'?'bg-cyan-500':'bg-white/10'} transition">BAR</button>
-                            <button onclick="window.setUI('pie')" class="px-4 py-2 rounded-lg text-xs font-bold ${window.ui.chart==='pie'?'bg-cyan-500':'bg-white/10'} transition">PIE</button>
-                        </div>
-
                         ${window.ui.chart === 'bar' ? renderBar(options, total) : renderPie(options, total)}
                     </div>
+                    ` : ''}
 
-                    <div class="col-span-6 flex flex-col gap-4 h-full">
-                        ${options.map((o, i) => `
-                            <div class="variety-card flex-1 rounded-[1.5rem] px-8 py-4 flex justify-between items-center">
-                                <div class="flex items-center gap-6">
-                                    <div class="w-12 h-12 rounded-full bg-white text-blue-900 flex items-center justify-center text-2xl font-black">${String.fromCharCode(65+i)}</div>
-                                    <div class="text-3xl font-bold">${o.text || o.label}</div>
+                    <div class="${window.ui.hideCharts ? 'max-w-4xl mx-auto w-full' : 'col-span-6'} flex flex-col gap-4 h-full justify-center">
+                        ${options.map((o, i) => {
+                            const char = String.fromCharCode(65+i);
+                            return `
+                                <div class="variety-card flex-1 rounded-[1.5rem] px-10 py-4 flex justify-between items-center">
+                                    <div class="flex items-center gap-8">
+                                        <div class="w-16 h-16 rounded-full icon-${char} flex items-center justify-center text-3xl font-black shadow-lg">${char}</div>
+                                        <div class="text-4xl font-bold">${o.text || o.label}</div>
+                                    </div>
+                                    <div class="text-right ${window.ui.hideCharts ? 'hidden' : 'block'}">
+                                        <div class="vote-display">${o.voteCount}</div>
+                                        <div class="text-[10px] font-bold opacity-30 tracking-widest uppercase mt-1">Votes</div>
+                                    </div>
                                 </div>
-                                <div class="text-right">
-                                    <div class="vote-display text-4xl">${o.voteCount}</div>
-                                    <div class="text-[10px] font-bold opacity-30 tracking-widest uppercase">Votes</div>
-                                </div>
-                            </div>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </div>
                 </div>
 
-                <button onclick="window.toggleAnswer(true)" class="w-full bg-gradient-to-r from-red-600 to-pink-600 py-6 rounded-[2rem] text-3xl font-black shadow-2xl hover:brightness-125 transition-all active:scale-95 animate-pulse mb-4">
-                    🔥 揭曉專家分析 REVEAL ANALYSIS
+                <button onclick="window.toggleAnswer(true)" class="w-full bg-gradient-to-r from-yellow-500 via-orange-600 to-red-600 py-7 rounded-[2rem] text-4xl font-black shadow-[0_15px_40px_rgba(220,38,38,0.4)] hover:brightness-110 active:scale-[0.98] transition-all animate-pulse mb-2">
+                    💡 揭曉專家解析
                 </button>
 
                 ${window.ui.showAnswer ? `
                     <div class="reveal-overlay p-10">
-                        <div class="max-w-5xl w-full text-center">
-                            <div class="inline-block bg-amber-400 text-black px-12 py-2 rounded-full text-sm font-black mb-8">EXPERT ANALYSIS</div>
-                            <h2 class="text-6xl font-black leading-tight mb-16 italic text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]">
+                        <div class="max-w-6xl w-full text-center">
+                            <div class="inline-block bg-amber-400 text-black px-12 py-2 rounded-full text-lg font-black mb-10 shadow-xl">專家深度解析 EXPERT ANALYSIS</div>
+                            <h2 class="text-7xl font-black leading-tight mb-20 italic text-white drop-shadow-[0_0_40px_rgba(255,255,255,0.4)]">
                                 「 ${expertMsg} 」
                             </h2>
-                            <div class="flex justify-center gap-6">
-                                <button onclick="window.speak('${expertMsg.replace(/'/g, "\\'")}')" class="bg-cyan-500 text-white px-16 py-6 rounded-full text-2xl font-black hover:scale-105 transition shadow-xl">🔊 播放解答</button>
-                                <button onclick="window.toggleAnswer(false)" class="bg-white/10 text-white px-16 py-6 rounded-full text-2xl font-black hover:bg-white/20 transition">返回</button>
+                            <div class="flex justify-center gap-8">
+                                <button onclick="window.speak('${expertMsg.replace(/'/g, "\\'")}')" class="bg-cyan-500 text-white px-20 py-8 rounded-full text-3xl font-black hover:scale-105 transition shadow-[0_0_30px_rgba(6,182,212,0.4)]">🔊 播放語音</button>
+                                <button onclick="window.toggleAnswer(false)" class="bg-white/10 text-white px-20 py-8 rounded-full text-3xl font-black hover:bg-white/20 transition">返回計票</button>
                             </div>
                         </div>
                     </div>
@@ -174,14 +197,15 @@
         };
 
         const renderBar = (opts, total) => `
-            <div class="flex items-end justify-around w-full h-[350px] gap-6">
+            <div class="flex items-end justify-around w-full h-[400px] gap-10">
                 ${opts.map((o, i) => {
                     const h = total > 0 ? (Number(o.voteCount) / total * 100) : 5;
+                    const char = String.fromCharCode(65+i);
                     return `
                         <div class="flex-1 flex flex-col items-center h-full justify-end">
                             <div class="vote-display text-3xl mb-4">${o.voteCount}</div>
-                            <div class="w-full bg-gradient-to-t from-blue-600 to-cyan-300 rounded-t-xl shadow-[0_0_20px_rgba(34,211,238,0.3)]" style="height: ${h}%"></div>
-                            <div class="mt-4 font-black text-xl text-white/20">${String.fromCharCode(65+i)}</div>
+                            <div class="w-full bar-${char} rounded-t-2xl transition-all duration-1000" style="height: ${h}%"></div>
+                            <div class="mt-4 font-black text-2xl text-white/20">${char}</div>
                         </div>
                     `;
                 }).join('')}
@@ -190,32 +214,33 @@
 
         const renderPie = (opts, total) => {
             let curr = 0;
-            const colors = ['#3b82f6', '#06b6d4', '#8b5cf6', '#ec4899'];
+            const colors = ['#4ade80', '#3b82f6', '#f97316', '#ec4899'];
             const paths = opts.map((o, i) => {
                 const p = total > 0 ? (Number(o.voteCount) / total) : 0;
                 const x1 = Math.cos(2 * Math.PI * curr); const y1 = Math.sin(2 * Math.PI * curr);
                 curr += p;
                 const x2 = Math.cos(2 * Math.PI * curr); const y2 = Math.sin(2 * Math.PI * curr);
                 const large = p > 0.5 ? 1 : 0;
-                return `<path d="M 0 0 L ${x1} ${y1} A 1 1 0 ${large} 1 ${x2} ${y2} Z" fill="${colors[i%4]}"></path>`;
+                return `<path d="M 0 0 L ${x1} ${y1} A 1 1 0 ${large} 1 ${x2} ${y2} Z" fill="${colors[i%4]}" stroke="#000" stroke-width="0.01"></path>`;
             }).join('');
             return `
                 <div class="pie-container relative">
                     <svg viewBox="-1.02 -1.02 2.04 2.04" class="transform -rotate-90 drop-shadow-2xl">${paths}</svg>
                     <div class="absolute inset-0 flex flex-col items-center justify-center">
-                        <div class="text-xs font-bold opacity-30">TOTAL</div>
-                        <div class="text-5xl font-black">${total}</div>
+                        <div class="text-sm font-bold opacity-30 tracking-widest">TOTAL</div>
+                        <div class="text-6xl font-black">${total}</div>
                     </div>
                 </div>
             `;
         };
 
-        window.setUI = (c) => { window.ui.chart = c; render(); };
+        window.setUI = (c) => { window.ui.chart = c; window.ui.hideCharts = false; render(); };
+        window.toggleHide = () => { window.ui.hideCharts = !window.ui.hideCharts; render(); };
         window.toggleAnswer = (s) => { window.ui.showAnswer = s; render(); };
         window.speak = (msg) => {
             window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(msg);
-            u.lang = 'zh-TW'; u.rate = 0.95;
+            u.lang = 'zh-TW'; u.rate = 1;
             window.speechSynthesis.speak(u);
         };
 
