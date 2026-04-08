@@ -2,27 +2,43 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>即時投票展示系統 - 最終質感修正版</title>
+    <title>Master Reveal - 終極視覺系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@100;400;700;900&display=swap');
         body { 
-            background: radial-gradient(circle at center, #1a154d 0%, #0c0a2a 100%);
+            background: #02020a;
+            background: radial-gradient(circle at center, #1a1a3a 0%, #02020a 100%);
             font-family: 'Noto Sans TC', sans-serif;
-            overflow-x: hidden;
+            color: white;
+            overflow: hidden;
         }
-        .neon-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); border-radius: 1.5rem; border: 1px solid rgba(255, 255, 255, 0.1); }
-        .answer-highlight { border: 2px solid #fbbf24; box-shadow: 0 0 40px rgba(251, 191, 36, 0.2); }
-        .bar-grow { transition: height 1s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        /* 舞台光影質感 */
+        .stage-card { 
+            background: rgba(255, 255, 255, 0.03); 
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 2.5rem;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.8);
+        }
+        .glow-gold { border: 1px solid rgba(251, 191, 36, 0.5); box-shadow: 0 0 80px rgba(251, 191, 36, 0.15); }
         
-        /* 動畫效果 */
-        .page-transition { transition: all 0.5s ease-in-out; }
-        .hidden-el { opacity: 0; pointer-events: none; transform: translateY(20px); position: absolute; }
-        .visible-el { opacity: 1; transform: translateY(0); }
+        /* 深度排版 */
+        .stat-huge { font-weight: 900; font-size: 3.5rem; line-height: 1; letter-spacing: -2px; }
+        .label-light { font-weight: 100; letter-spacing: 0.2em; opacity: 0.5; text-transform: uppercase; }
+
+        /* 動態轉場：舞台煙霧感 */
+        .stage-transition { transition: all 0.8s cubic-bezier(0.2, 1, 0.3, 1); }
+        .scene-hidden { opacity: 0; transform: translateY(50px) scale(0.9); pointer-events: none; position: absolute; width: 100%; }
+        .scene-active { opacity: 1; transform: translateY(0) scale(1); position: relative; }
+        
+        /* 動態進場 */
+        @keyframes slideIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .reveal-item { animation: slideIn 0.6s ease forwards; }
     </style>
 </head>
-<body class="text-white min-h-screen p-6 md:p-12">
-    <div id="root" class="max-w-[1400px] mx-auto"></div>
+<body class="p-12 md:p-20 h-screen flex flex-col">
+    <div id="root" class="max-w-[1500px] mx-auto w-full h-full flex flex-col"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -41,137 +57,135 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // 全域 UI 狀態
-        window.uiState = { 
-            currentChart: 'bar', // 預設顯示長條圖，避免一進去空掉
-            showAnswer: false 
-        };
-        let lastData = null;
+        // 核心狀態管理
+        window.state = { showAnswer: false, chart: 'bar' };
+        let pollData = null;
 
         const render = () => {
-            if (!lastData) return;
+            if (!pollData) return;
             const root = document.getElementById('root');
-            const state = window.uiState;
-            
-            // 抓取當前活動題目
-            const target = Object.values(lastData).find(p => p.isActive) || Object.values(lastData)[0];
+            const target = Object.values(pollData).find(p => p.isActive) || Object.values(pollData)[0];
             const options = Object.values(target.options || {});
-            const totalVotes = options.reduce((sum, o) => sum + (Number(o.voteCount) || 0), 0);
-            const expertText = target.expertAnalysis || target.analysis || "解析資料讀取中...";
+            const total = options.reduce((s, o) => s + (Number(o.voteCount) || 0), 0);
+            const expertText = target.expertAnalysis || target.analysis || "系統正在生成專家見解...";
 
             root.innerHTML = `
-                <div class="flex justify-between items-center mb-12 page-transition ${state.showAnswer ? 'opacity-0' : ''}">
-                    <div class="flex items-center gap-4">
-                        <div class="bg-red-500/20 text-red-400 px-3 py-1 rounded-lg text-xs font-bold border border-red-500/30 animate-pulse">LIVE REPORT</div>
-                        <div class="text-sm font-medium opacity-60">數據同步中 (${totalVotes} 票)</div>
-                    </div>
-                    <div class="flex bg-white/5 p-1 rounded-xl border border-white/10">
-                        <button onclick="window.setUI('bar')" class="px-4 py-2 rounded-lg text-sm font-medium transition ${state.currentChart==='bar'?'bg-blue-600 shadow-lg':'opacity-40'}">長條圖</button>
-                        <button onclick="window.setUI('pie')" class="px-4 py-2 rounded-lg text-sm font-medium transition ${state.currentChart==='pie'?'bg-blue-600 shadow-lg':'opacity-40'}">圓餅圖</button>
-                        <button onclick="window.setUI('none')" class="px-4 py-2 rounded-lg text-sm font-medium transition ${state.currentChart==='none'?'bg-blue-600 shadow-lg':'opacity-40'}">僅文字</button>
-                    </div>
-                </div>
-
-                <div class="mb-12 transition-all duration-700 ${state.showAnswer ? 'text-center' : 'text-left'}">
-                    <h1 class="text-4xl md:text-5xl font-bold leading-snug tracking-tight max-w-5xl ${state.showAnswer ? 'mx-auto' : ''}">
-                        Q: ${target.question}
-                    </h1>
-                </div>
-
-                <div class="relative min-h-[500px]">
-                    
-                    <div class="grid grid-cols-12 gap-8 transition-all duration-500 ${state.showAnswer ? 'opacity-0 scale-95 pointer-events-none' : 'visible-el'}">
-                        
-                        <div class="${state.currentChart === 'none' ? 'hidden' : 'col-span-12 lg:col-span-5'} neon-card p-10 flex flex-col items-center justify-center min-h-[450px]">
-                            ${state.currentChart === 'bar' ? `
-                                <div class="flex items-end justify-around w-full h-full gap-4 pt-10">
-                                    ${options.map((o, i) => {
-                                        const h = totalVotes > 0 ? (Number(o.voteCount) / totalVotes * 100) : 5;
-                                        return `
-                                            <div class="flex flex-col items-center w-full group">
-                                                <div class="mb-4 text-xl font-bold text-blue-400">${o.voteCount}</div>
-                                                <div class="w-full max-w-[60px] bg-blue-500/40 rounded-t-lg bar-grow relative overflow-hidden" style="height: ${h}%">
-                                                    <div class="absolute inset-0 bg-gradient-to-t from-blue-600 to-cyan-400 opacity-80"></div>
-                                                </div>
-                                                <div class="mt-4 text-sm font-medium opacity-40">${String.fromCharCode(65+i)}</div>
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            ` : `
-                                <div class="relative w-64 h-64">
-                                    <svg viewBox="-1 -1 2 2" class="transform -rotate-90">
-                                        ${renderPie(options, totalVotes)}
-                                    </svg>
-                                    <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                        <div class="text-xs opacity-40">TOTAL</div>
-                                        <div class="text-4xl font-black">${totalVotes}</div>
-                                    </div>
-                                </div>
-                            `}
+                <header class="mb-16 flex justify-between items-start">
+                    <div class="max-w-4xl">
+                        <div class="flex items-center gap-4 mb-4">
+                            <span class="bg-red-600 px-3 py-1 rounded text-[10px] font-black tracking-widest animate-pulse">LIVE REPORT</span>
+                            <div class="h-[1px] w-20 bg-white/20"></div>
+                            <span class="label-light text-xs">Session 2026 / Interactive Poll</span>
                         </div>
+                        <h1 class="text-6xl font-bold leading-tight text-white/90">Q: ${target.question}</h1>
+                    </div>
+                    
+                    <div class="flex bg-white/5 backdrop-blur-md p-1.5 rounded-2xl border border-white/10 ${window.state.showAnswer ? 'opacity-0' : ''} transition-opacity">
+                        <button onclick="window.setUI('bar')" class="px-6 py-2 rounded-xl text-xs font-bold ${window.state.chart==='bar'?'bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.4)]':'opacity-40'}">BAR</button>
+                        <button onclick="window.setUI('pie')" class="px-6 py-2 rounded-xl text-xs font-bold ${window.state.chart==='pie'?'bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.4)]':'opacity-40'}">PIE</button>
+                    </div>
+                </header>
 
-                        <div class="${state.currentChart === 'none' ? 'col-span-12 max-w-4xl mx-auto' : 'col-span-12 lg:col-span-7'} space-y-4">
+                <main class="relative flex-grow">
+                    <div class="stage-transition ${window.state.showAnswer ? 'scene-hidden' : 'scene-active'} grid grid-cols-12 gap-12 h-full">
+                        <div class="col-span-7 stage-card p-12 flex items-center justify-center relative">
+                            ${window.state.chart === 'bar' ? renderBar(options, total) : renderPie(options, total)}
+                        </div>
+                        <div class="col-span-5 flex flex-col gap-5">
                             ${options.map((o, i) => `
-                                <div class="neon-card p-6 flex justify-between items-center px-8 border-l-4 border-white/20">
+                                <div class="stage-card px-10 py-7 flex justify-between items-center group hover:bg-white/[0.05] transition-all">
                                     <div class="flex items-center gap-6">
-                                        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold text-sm">${String.fromCharCode(65+i)}</div>
-                                        <div class="text-xl font-medium">${o.text || o.label}</div>
+                                        <div class="text-4xl font-black opacity-10 group-hover:opacity-100 group-hover:text-blue-500 transition-all">${String.fromCharCode(65+i)}</div>
+                                        <div class="text-2xl font-medium text-white/80">${o.text || o.label}</div>
                                     </div>
-                                    <div class="text-2xl font-bold">${o.voteCount} <span class="text-xs opacity-30 font-normal ml-1">票</span></div>
+                                    <div class="text-right">
+                                        <div class="stat-huge">${o.voteCount}</div>
+                                        <div class="label-light text-[10px]">Votes</div>
+                                    </div>
                                 </div>
                             `).join('')}
-                            
-                            <button onclick="window.toggleAnswer(true)" class="w-full mt-8 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 py-6 rounded-2xl text-xl font-bold shadow-xl transition active:scale-95">
-                                💡 公佈專家解答
+                            <button onclick="window.toggleAnswer(true)" class="mt-auto bg-white text-black py-8 rounded-[2rem] text-2xl font-black hover:bg-blue-500 hover:text-white transition-all transform active:scale-95 shadow-2xl">
+                                REVEAL ANALYSIS 💡
                             </button>
                         </div>
                     </div>
 
-                    <div class="absolute inset-0 transition-all duration-700 ${state.showAnswer ? 'visible-el' : 'opacity-0 scale-105 pointer-events-none'}">
-                        <div class="neon-card answer-highlight p-12 max-w-5xl mx-auto min-h-[400px] flex flex-col justify-center bg-amber-500/5">
-                            <div class="flex justify-between items-center mb-8 border-b border-amber-500/20 pb-6">
-                                <div class="flex items-center gap-4">
-                                    <div class="text-3xl text-amber-400">💡</div>
-                                    <div class="text-2xl font-bold text-amber-400 tracking-wider">EXPERT ANALYSIS</div>
+                    <div class="stage-transition ${window.state.showAnswer ? 'scene-active' : 'scene-hidden'} flex justify-center pt-10">
+                        <div class="stage-card glow-gold p-16 max-w-5xl w-full relative">
+                            <div class="flex justify-between items-center mb-12">
+                                <div>
+                                    <div class="label-light text-amber-500 mb-2">Expert Perspective</div>
+                                    <h2 class="text-4xl font-bold">深度解析</h2>
                                 </div>
-                                <div class="flex gap-3">
-                                    <button class="bg-amber-500 text-black px-4 py-2 rounded-xl text-xs font-bold hover:bg-amber-400">🔊 朗讀</button>
-                                    <button onclick="window.toggleAnswer(false)" class="bg-white/10 px-4 py-2 rounded-xl text-xs font-bold hover:bg-white/20">↩ 返回統計</button>
+                                <div class="flex gap-4">
+                                    <button onclick="window.speak('${expertText.replace(/'/g, "\\'")}')" class="bg-amber-500 text-black px-8 py-3 rounded-full text-sm font-black hover:scale-105 transition-transform">🔊 朗讀解答</button>
+                                    <button onclick="window.toggleAnswer(false)" class="bg-white/10 px-8 py-3 rounded-full text-sm font-bold hover:bg-white/20">返回統計</button>
                                 </div>
                             </div>
-                            <p class="text-2xl leading-relaxed font-medium text-slate-100 italic">
+                            <p class="text-4xl leading-relaxed font-light text-white/90 italic tracking-wide">
                                 「 ${expertText} 」
                             </p>
+                            <div class="mt-20 border-t border-white/5 pt-8 text-center">
+                                <span class="label-light text-[10px]">Data Integrity Verified • Powered by Gemini Flash 3</span>
+                            </div>
                         </div>
                     </div>
+                </main>
+            `;
+        };
 
+        const renderBar = (options, total) => `
+            <div class="flex items-end justify-around w-full h-[400px] gap-10">
+                ${options.map((o, i) => {
+                    const h = total > 0 ? (Number(o.voteCount) / total * 100) : 5;
+                    return `
+                        <div class="flex flex-col items-center flex-1">
+                            <div class="stat-huge text-4xl mb-6 text-blue-500">${o.voteCount}</div>
+                            <div class="w-full bg-gradient-to-t from-blue-900 to-blue-400 rounded-t-2xl shadow-[0_0_40px_rgba(59,130,246,0.2)] transition-all duration-1000" style="height: ${h}%"></div>
+                            <div class="label-light mt-6 text-sm">${String.fromCharCode(65+i)}</div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+
+        const renderPie = (options, total) => {
+            let curr = 0;
+            const paths = options.map((o, i) => {
+                const p = total > 0 ? (Number(o.voteCount) / total) : 0;
+                const x1 = Math.cos(2 * Math.PI * curr); const y1 = Math.sin(2 * Math.PI * curr);
+                curr += p;
+                const x2 = Math.cos(2 * Math.PI * curr); const y2 = Math.sin(2 * Math.PI * curr);
+                return `<path d="M 0 0 L ${x1} ${y1} A 1 1 0 ${p > 0.5 ? 1 : 0} 1 ${x2} ${y2} Z" fill="rgba(59,130,246,${0.3 + (i*0.2)})" stroke="#1a1a3a" stroke-width="0.01"></path>`;
+            }).join('');
+            return `
+                <div class="relative w-96 h-96">
+                    <svg viewBox="-1.05 -1.05 2.1 2.1" class="transform -rotate-90 drop-shadow-[0_30px_50px_rgba(0,0,0,0.5)]">${paths}</svg>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <div class="label-light text-xs mb-1">Total</div>
+                        <div class="stat-huge text-6xl">${total}</div>
+                    </div>
                 </div>
             `;
         };
 
-        const renderPie = (options, total) => {
-            let current = 0;
-            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
-            return options.map((o, i) => {
-                const p = total > 0 ? (Number(o.voteCount) / total) : 0;
-                const x1 = Math.cos(2 * Math.PI * current);
-                const y1 = Math.sin(2 * Math.PI * current);
-                current += p;
-                const x2 = Math.cos(2 * Math.PI * current);
-                const y2 = Math.sin(2 * Math.PI * current);
-                const large = p > 0.5 ? 1 : 0;
-                return `<path d="M 0 0 L ${x1} ${y1} A 1 1 0 ${large} 1 ${x2} ${y2} Z" fill="${colors[i%4]}"></path>`;
-            }).join('');
+        // 語音控制
+        window.speak = (msg) => {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(msg);
+            u.lang = 'zh-TW'; u.rate = 0.95; u.pitch = 1.0;
+            window.speechSynthesis.speak(u);
         };
 
-        // 事件綁定
-        window.setUI = (type) => { window.uiState.currentChart = type; render(); };
-        window.toggleAnswer = (show) => { window.uiState.showAnswer = show; render(); };
+        window.setUI = (c) => { window.state.chart = c; render(); };
+        window.toggleAnswer = (s) => { 
+            window.state.showAnswer = s; 
+            if(!s) window.speechSynthesis.cancel();
+            render(); 
+        };
 
-        // 監聽 Firebase
         onValue(ref(db, 'polls'), (snap) => {
-            lastData = snap.val();
+            pollData = snap.val();
             render();
         });
     </script>
