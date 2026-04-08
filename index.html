@@ -7,8 +7,9 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 </head>
-<body class="bg-slate-950 text-white">
+<body class="bg-slate-950 text-white font-sans">
     <div id="root"></div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -24,44 +25,76 @@
         };
 
         const { useState, useEffect } = React;
+
         function App() {
-            const [poll, setPoll] = useState(null);
-            const [msg, setMsg] = useState("📡 正在嘗試連線 Firebase...");
+            const [displayData, setDisplayData] = useState(null);
+            const [loadingMsg, setLoadingMsg] = useState("📡 正在讀取投票資料...");
 
             useEffect(() => {
-                try {
-                    const app = initializeApp(firebaseConfig);
-                    const db = getDatabase(app);
-                    const pollsRef = ref(db, 'polls');
-                    
-                    onValue(pollsRef, (snap) => {
-                        const data = snap.val();
-                        if (data) {
-                            // 抓取第一個題目測試
-                            const firstPoll = Object.values(data)[0];
-                            const options = firstPoll.options ? Object.values(firstPoll.options) : [];
-                            setPoll({ question: firstPoll.question, options });
-                        } else {
-                            setMsg("❌ 資料庫裡沒有題目 (polls 分支是空的)");
+                const app = initializeApp(firebaseConfig);
+                const db = getDatabase(app);
+                // 根據你的 Rules，我們只抓 polls 這個路徑
+                const pollsRef = ref(db, 'polls');
+
+                onValue(pollsRef, (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        // 1. 嘗試尋找正在啟動的題目 (isActive)
+                        let target = Object.values(data).find(p => p.isActive === true);
+                        
+                        // 2. 如果沒人啟動，就抓清單中的最後一個 (最新的題目)
+                        if (!target) {
+                            const keys = Object.keys(data);
+                            target = data[keys[keys.length - 1]];
                         }
-                    }, (err) => {
-                        setMsg("❌ Firebase 拒絕連線: " + err.message);
-                    });
-                } catch (e) {
-                    setMsg("❌ 程式執行出錯: " + e.message);
-                }
+
+                        if (target) {
+                            // 3. 處理選項：相容你的資料結構
+                            const options = target.options ? Object.values(target.options).map(opt => ({
+                                text: opt.text || opt.label || "選項",
+                                count: opt.voteCount || 0
+                            })) : [];
+
+                            setDisplayData({
+                                question: target.question || "未命名題目",
+                                options: options
+                            });
+                        } else {
+                            setLoadingMsg("❌ 資料庫內找不到有效題目");
+                        }
+                    } else {
+                        setLoadingMsg("❌ 無法取得 polls 資料，請確認後台是否有題目");
+                    }
+                }, (err) => {
+                    setLoadingMsg("❌ Firebase 連線失敗: " + err.message);
+                });
             }, []);
 
-            if (!poll) return <div class="h-screen flex items-center justify-center text-xl font-bold p-10 text-center">{msg}</div>;
+            if (!displayData) {
+                return (
+                    <div className="flex h-screen items-center justify-center text-center p-10">
+                        <div>
+                            <div className="text-6xl mb-6">⏳</div>
+                            <h1 className="text-2xl font-bold opacity-80">{loadingMsg}</h1>
+                        </div>
+                    </div>
+                );
+            }
 
             return (
-                <div class="p-10 max-w-4xl mx-auto">
-                    <h1 class="text-4xl font-black mb-10 text-blue-400">{poll.question}</h1>
-                    <div class="space-y-4">
-                        {poll.options.map((opt, i) => (
-                            <div key={i} class="p-6 bg-white/10 rounded-2xl flex justify-between border border-white/10">
-                                <span class="text-2xl font-bold">{opt.text || opt.label}</span>
-                                <span class="text-3xl font-black text-green-400">{opt.voteCount || 0} 票</span>
+                <div className="min-h-screen p-6 md:p-12 max-w-5xl mx-auto">
+                    <div className="mb-12 text-center md:text-left">
+                        <p className="text-blue-500 font-black tracking-tighter mb-2">LIVE VOTING</p>
+                        <h1 className="text-4xl md:text-6xl font-black">{displayData.question}</h1>
+                    </div>
+
+                    <div className="grid gap-6">
+                        {displayData.options.map((opt, i) => (
+                            <div key={i} className="bg-slate-900 border border-white/10 p-6 rounded-3xl flex justify-between items-center shadow-2xl">
+                                <span className="text-xl md:text-3xl font-bold">{opt.text}</span>
+                                <span className="text-3xl md:text-5xl font-black text-blue-400 tabular-nums">
+                                    {opt.count} <span className="text-sm font-normal opacity-40">票</span>
+                                </span>
                             </div>
                         ))}
                     </div>
@@ -69,7 +102,8 @@
             );
         }
 
-        ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
     </script>
 </body>
 </html>
