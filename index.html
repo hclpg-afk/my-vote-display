@@ -9,13 +9,18 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
 </head>
-<body class="bg-slate-950">
-    <div id="root"></div>
+<body class="bg-slate-950 text-white min-h-screen">
+    <div id="root">
+        <div class="flex items-center justify-center h-screen">
+            <p class="text-2xl animate-pulse">📡 系統初始化中...</p>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+        // 從你的 firebase.ts 提取的正確配置
         const firebaseConfig = {
             apiKey: "AIzaSyAt_319BG9mDYgbeZJhCWz52iMfdnaTbTE",
             authDomain: "voting-event.firebaseapp.com",
@@ -29,52 +34,56 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         const { useState, useEffect } = React;
-        const { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } = Recharts;
 
         function App() {
             const [poll, setPoll] = useState(null);
-            const [error, setError] = useState(null);
+            const [status, setStatus] = useState("連線中...");
 
             useEffect(() => {
                 const pollsRef = ref(db, 'polls');
-                const unsubscribe = onValue(pollsRef, (snapshot) => {
-                    try {
-                        const data = snapshot.val();
-                        if (data) {
-                            const activeKey = Object.keys(data).find(key => data[key].isActive === true);
-                            const targetPoll = activeKey ? data[activeKey] : Object.values(data)[0];
-                            
-                            const options = targetPoll.options ? Object.entries(targetPoll.options).map(([id, opt]) => ({
-                                name: opt.text || opt.label,
-                                value: opt.voteCount || 0
+                onValue(pollsRef, (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        // 依照 DisplayPage.tsx 的邏輯找出 isActive 題目
+                        const activeEntry = Object.entries(data).find(([_, v]) => v.isActive);
+                        if (activeEntry) {
+                            const [id, val] = activeEntry;
+                            const options = val.options ? Object.entries(val.options).map(([optId, opt]) => ({
+                                text: opt.text || opt.label,
+                                count: opt.voteCount || 0
                             })) : [];
-                            
-                            setPoll({ ...targetPoll, options });
+                            setPoll({ question: val.question, options });
+                        } else {
+                            setStatus("等待主持人開啟題目...");
                         }
-                    } catch (e) {
-                        setError(e.message);
+                    } else {
+                        setStatus("資料庫內無題目資料。");
                     }
-                }, (err) => {
-                    setError("資料庫連線失敗: " + err.message);
+                }, (error) => {
+                    setStatus("資料庫連線錯誤: " + error.message);
                 });
-                return () => unsubscribe();
             }, []);
 
-            if (error) return <div class="text-red-500 p-10 text-xl font-bold">{error}</div>;
-            if (!poll) return <div class="text-white p-10 text-2xl font-black animate-pulse">📡 正在從 Firebase 抓取資料...</div>;
+            if (!poll) {
+                return (
+                    <div className="flex flex-col items-center justify-center h-screen text-center">
+                        <div className="text-6xl mb-6">⏳</div>
+                        <h1 className="text-3xl font-bold">{status}</h1>
+                    </div>
+                );
+            }
 
             return (
-                <div class="min-h-screen p-8 text-white font-sans">
-                    <h1 class="text-5xl font-black mb-10 text-center">{poll.question}</h1>
-                    <div class="max-w-4xl mx-auto bg-slate-900/50 p-8 rounded-[2rem] border border-white/10">
+                <div className="p-8 max-w-4xl mx-auto">
+                    <h1 className="text-5xl font-black mb-12 text-center text-blue-400">{poll.question}</h1>
+                    <div className="space-y-4">
                         {poll.options.map((opt, i) => (
-                            <div key={i} class="flex justify-between p-6 bg-white/5 rounded-2xl mb-4 text-2xl border border-white/5">
-                                <div class="font-bold flex-1"><span class="opacity-30 mr-4">{i+1}.</span>{opt.name}</div>
-                                <div class="text-blue-400 font-black">{opt.value} 票</div>
+                            <div key={i} className="flex justify-between items-center p-6 bg-white/10 rounded-3xl border border-white/10">
+                                <span className="text-2xl font-bold">{opt.text}</span>
+                                <span className="text-3xl font-black text-green-400 tabular-nums">{opt.count} 票</span>
                             </div>
                         ))}
                     </div>
-                    <p class="text-center mt-10 text-slate-500 font-bold">網址已連線至：voting-event-default-rtdb</p>
                 </div>
             );
         }
