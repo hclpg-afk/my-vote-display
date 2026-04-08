@@ -2,10 +2,10 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>THE ULTIMATE SHOW - 高度優化版</title>
+    <title>THE ULTIMATE SHOW - 資料修正版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700&display=swap');
         
         body { 
             background: radial-gradient(circle at center, #1a1b4b 0%, #050505 100%);
@@ -16,60 +16,67 @@
             display: flex;
             flex-direction: column;
             margin: 0;
-            padding: 1.5rem; /* 稍微縮小外邊距 */
+            padding: 1rem;
         }
 
+        /* 標題框 - 限制高度防止推擠 */
         .header-box {
-            background: linear-gradient(180deg, #4facfe 0%, #00f2fe 100%);
-            padding: 3px;
-            border-radius: 1.2rem;
-            box-shadow: 0 8px 30px rgba(0, 242, 254, 0.3);
-            max-width: 95%;
-        }
-        .header-content {
-            background: #0a0a20;
-            padding: 0.8rem 2.5rem;
+            border: 2px solid #00f2fe;
             border-radius: 1rem;
+            background: rgba(10, 10, 32, 0.85);
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+            max-width: 90%;
+            margin: 0 auto 1.5rem;
         }
 
-        .icon-A { background: #4ade80 !important; color: #064e3b !important; }
-        .icon-B { background: #3b82f6 !important; color: #1e3a8a !important; }
-        .icon-C { background: #f97316 !important; color: #7c2d12 !important; }
-        
-        .bar-A { background: linear-gradient(to top, #065f46, #4ade80); box-shadow: 0 0 20px rgba(74, 222, 128, 0.3); }
-        .bar-B { background: linear-gradient(to top, #1e40af, #3b82f6); box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
-        .bar-C { background: linear-gradient(to top, #9a3412, #f97316); box-shadow: 0 0 20px rgba(249, 115, 22, 0.3); }
+        /* 選項卡片 - 緊湊版避免 C 被吃掉 */
+        .option-card {
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.8rem;
+            padding: 0.6rem 1.2rem;
+            max-height: 80px;
+        }
 
-        .vote-number {
-            font-size: 3.5rem; /* 縮小數字避免撐開高度 */
-            font-weight: 900;
-            background: linear-gradient(to bottom, #fff, #ffd700, #ff8c00);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 3px 3px rgba(0,0,0,0.5));
+        .icon-A { background: #4ade80; color: #064e3b; }
+        .icon-B { background: #3b82f6; color: #fff; }
+        .icon-C { background: #f97316; color: #fff; }
+
+        .vote-num {
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: #ffd700;
             line-height: 1;
         }
 
-        .variety-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1.5px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            transition: all 0.4s ease;
-            max-height: 25%; /* 限制單個卡片最大高度佔比 */
-        }
-
-        .reveal-overlay {
+        /* 全屏專家解析 Overlay */
+        #expert-overlay {
             position: fixed;
             inset: 0;
-            z-index: 9999;
-            background: radial-gradient(circle, #2d1b69 0%, #000 100%);
-            display: flex; align-items: center; justify-content: center;
+            background: rgba(0, 0, 0, 0.98);
+            z-index: 999;
+            display: none; /* 由 JS 切換 */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
         }
+
+        .bar-container { height: 280px; }
     </style>
 </head>
 <body>
 
-    <div id="root" class="h-full flex flex-col w-full max-w-[1750px] mx-auto overflow-hidden"></div>
+    <div id="root" class="h-full flex flex-col w-full max-w-[1600px] mx-auto overflow-hidden"></div>
+
+    <div id="expert-overlay">
+        <div class="bg-yellow-400 text-black px-10 py-1.5 rounded-full text-xl font-bold mb-10 shadow-lg">💡 專家解析揭曉</div>
+        <div id="expert-text" class="text-5xl lg:text-7xl font-bold text-center leading-tight mb-20 px-6 max-w-6xl"></div>
+        <div class="flex gap-8">
+            <button onclick="window.speak()" class="bg-cyan-500 hover:bg-cyan-400 px-16 py-5 rounded-full text-3xl font-bold transition-all transform hover:scale-105 shadow-xl">🔊 播放語音</button>
+            <button onclick="window.closeExpert()" class="bg-white/10 hover:bg-white/20 px-16 py-5 rounded-full text-3xl font-bold transition-all border border-white/20">返回投票</button>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -79,17 +86,15 @@
             apiKey: "AIzaSyAt_319BG9mDYgbeZJhCWz52iMfdnaTbTE",
             authDomain: "voting-event.firebaseapp.com",
             databaseURL: "https://voting-event-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "voting-event",
-            storageBucket: "voting-event.firebasestorage.app",
-            messagingSenderId: "680113677727",
-            appId: "1:680113677727:web:8dc23a48f35b0bcb0b09aa"
+            projectId: "voting-event"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        window.ui = { showAnswer: false, chart: 'bar', hideCharts: false };
-        let lastData = null;
+        let currentPollId = null;
+        let activeAnalysis = "";
+        window.ui = { chart: 'bar', hideCharts: false };
 
         const render = (data) => {
             const root = document.getElementById('root');
@@ -97,94 +102,81 @@
             
             if (!activeEntry) {
                 renderIdle(root);
+                currentPollId = null;
+                window.closeExpert();
                 return;
             }
 
             const [pollId, poll] = activeEntry;
+            
+            // 關鍵邏輯：換題時自動關閉解析畫面
+            if (currentPollId !== pollId) {
+                currentPollId = pollId;
+                window.closeExpert();
+            }
+
             const options = Object.values(poll.options || {});
             const total = options.reduce((s, o) => s + (Number(o.voteCount) || 0), 0);
-            const expertMsg = poll.expertAnalysis || poll.analysis || "解析準備中...";
+            
+            // 修正資料抓取：檢查所有可能的後台欄位名稱
+            activeAnalysis = poll.expertAnalysis || poll.analysis || poll.correctAnswer || "專家正在輸入解析中...";
 
             root.innerHTML = `
-                <div class="flex justify-between items-center mb-4">
-                    <div class="flex items-center gap-3 bg-black/40 px-5 py-1.5 rounded-full border border-white/10">
-                        <span class="flex h-2.5 w-2.5 relative">
-                            <span class="animate-ping absolute h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600"></span>
-                        </span>
-                        <span class="text-xs font-black uppercase">Live 連線</span>
-                        <div class="w-[1px] h-3 bg-white/20"></div>
-                        <span class="text-xs font-bold">已投 <span class="text-lg text-yellow-400">${total}</span> 票</span>
+                <div class="flex justify-between items-center mb-4 px-2">
+                    <div class="flex items-center gap-4 bg-black/50 px-5 py-2 rounded-full border border-white/10 shadow-lg">
+                        <span class="text-sm font-bold text-red-500 animate-pulse tracking-widest">● LIVE</span>
+                        <div class="w-[1px] h-4 bg-white/20"></div>
+                        <span class="text-base font-medium">總票數：<span class="text-2xl text-yellow-400 font-bold ml-1">${total}</span></span>
                     </div>
-
                     <div class="flex gap-2">
-                        <button onclick="window.setUI('bar')" class="px-4 py-1.5 rounded-lg text-[10px] font-black transition ${window.ui.chart==='bar' && !window.ui.hideCharts ?'bg-cyan-500':'bg-white/10 opacity-50'}">長條圖</button>
-                        <button onclick="window.setUI('pie')" class="px-4 py-1.5 rounded-lg text-[10px] font-black transition ${window.ui.chart==='pie' && !window.ui.hideCharts ?'bg-cyan-500':'bg-white/10 opacity-50'}">圓餅圖</button>
-                        <button onclick="window.toggleHide()" class="px-4 py-1.5 rounded-lg text-[10px] font-black transition ${window.ui.hideCharts?'bg-red-600':'bg-white/10 opacity-50'}">${window.ui.hideCharts?'顯示圖表':'隱藏圖表'}</button>
+                        <button onclick="window.setUI('bar')" class="px-5 py-2 rounded-xl text-sm font-bold ${window.ui.chart==='bar' && !window.ui.hideCharts ?'bg-cyan-500':'bg-white/10 opacity-50'}">長條圖</button>
+                        <button onclick="window.setUI('pie')" class="px-5 py-2 rounded-xl text-sm font-bold ${window.ui.chart==='pie' && !window.ui.hideCharts ?'bg-cyan-500':'bg-white/10 opacity-50'}">圓餅圖</button>
+                        <button onclick="window.toggleHide()" class="px-5 py-2 rounded-xl text-sm font-bold ${window.ui.hideCharts?'bg-red-600':'bg-white/10 opacity-50'}">隱藏/顯示圖表</button>
                     </div>
                 </div>
 
-                <div class="header-box self-center mb-6">
-                    <div class="header-content text-center">
-                        <h1 class="text-3xl lg:text-4xl font-black text-white leading-tight">Q: ${poll.question}</h1>
-                    </div>
+                <div class="header-box p-6 text-center">
+                    <h1 class="text-3xl lg:text-4xl font-bold leading-tight">Q: ${poll.question}</h1>
                 </div>
 
-                <div class="flex-1 flex gap-6 items-stretch overflow-hidden mb-4">
+                <div class="flex-1 flex gap-8 items-stretch overflow-hidden mb-6">
                     ${!window.ui.hideCharts ? `
-                    <div class="w-1/2 bg-white/5 rounded-[2rem] p-8 flex flex-col items-center justify-center border border-white/10">
-                        ${window.ui.chart === 'bar' ? renderBar(options, total) : renderPie(options, total)}
-                    </div>
+                        <div class="w-1/2 flex flex-col items-center justify-center bg-white/5 rounded-[2rem] p-10 border border-white/10">
+                            ${window.ui.chart === 'bar' ? renderBar(options, total) : renderPie(options, total)}
+                        </div>
                     ` : ''}
 
-                    <div class="${window.ui.hideCharts ? 'w-full max-w-4xl mx-auto' : 'w-1/2'} flex flex-col gap-3 justify-between">
-                        ${options.map((o, i) => {
-                            const char = String.fromCharCode(65+i);
-                            return `
-                                <div class="variety-card flex-1 rounded-[1.2rem] px-8 py-3 flex justify-between items-center">
-                                    <div class="flex items-center gap-6 overflow-hidden">
-                                        <div class="w-12 h-12 shrink-0 rounded-xl icon-${char} flex items-center justify-center text-2xl font-black shadow-lg">${char}</div>
-                                        <div class="text-2xl lg:text-3xl font-bold leading-tight truncate">${o.text || o.label}</div>
-                                    </div>
-                                    <div class="text-right shrink-0 ${window.ui.hideCharts ? 'hidden' : 'block'}">
-                                        <div class="vote-number">${o.voteCount}</div>
-                                        <div class="text-[8px] font-black opacity-30 tracking-widest">Votes</div>
-                                    </div>
+                    <div class="${window.ui.hideCharts ? 'w-full max-w-5xl mx-auto' : 'w-1/2'} flex flex-col justify-center gap-4">
+                        ${options.map((o, i) => `
+                            <div class="option-card flex justify-between items-center">
+                                <div class="flex items-center gap-6 overflow-hidden">
+                                    <div class="w-14 h-14 shrink-0 rounded-xl icon-${String.fromCharCode(65+i)} flex items-center justify-center text-3xl font-bold shadow-lg">${String.fromCharCode(65+i)}</div>
+                                    <div class="text-2xl lg:text-3xl font-bold truncate">${o.text || o.label}</div>
                                 </div>
-                            `;
-                        }).join('')}
+                                <div class="text-right shrink-0 ${window.ui.hideCharts ? 'hidden' : 'block'}">
+                                    <div class="vote-num">${o.voteCount}</div>
+                                    <div class="text-[10px] opacity-30 font-bold tracking-[0.2em] uppercase">Votes</div>
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
 
-                <button onclick="window.toggleAnswer(true)" class="w-full bg-gradient-to-r from-yellow-500 via-orange-600 to-red-600 py-5 rounded-[1.5rem] text-3xl font-black shadow-xl hover:brightness-110 active:scale-[0.99] transition-all animate-pulse">
-                    💡 揭曉專家深度解析
+                <button onclick="window.openExpert()" class="w-full bg-gradient-to-r from-red-600 via-orange-600 to-red-600 py-7 rounded-[1.5rem] text-4xl font-bold shadow-2xl hover:brightness-110 active:scale-[0.99] transition-all animate-pulse">
+                    🔥 揭曉專家深度解析 🔥
                 </button>
-
-                ${window.ui.showAnswer ? `
-                    <div class="reveal-overlay p-10">
-                        <div class="max-w-5xl w-full text-center">
-                            <div class="inline-block bg-yellow-400 text-black px-10 py-2 rounded-full text-lg font-black mb-8">專家解析</div>
-                            <h2 class="text-5xl lg:text-6xl font-black leading-tight mb-16 italic text-white drop-shadow-2xl">「 ${expertMsg} 」</h2>
-                            <div class="flex justify-center gap-6">
-                                <button onclick="window.speak('${expertMsg.replace(/'/g, "\\'")}')" class="bg-cyan-500 text-white px-16 py-5 rounded-full text-2xl font-black hover:scale-105 transition">🔊 播放語音</button>
-                                <button onclick="window.toggleAnswer(false)" class="bg-white/10 text-white px-16 py-5 rounded-full text-2xl font-black hover:bg-white/20 transition">返回</button>
-                            </div>
-                        </div>
-                    </div>
-                ` : ''}
             `;
         };
 
         const renderBar = (opts, total) => `
-            <div class="flex items-end justify-around w-full h-full max-h-[350px] gap-6">
+            <div class="bar-container flex items-end justify-around w-full gap-10">
                 ${opts.map((o, i) => {
                     const h = total > 0 ? (Number(o.voteCount) / total * 100) : 5;
-                    const char = String.fromCharCode(65+i);
                     return `
                         <div class="flex-1 flex flex-col items-center h-full justify-end">
-                            <div class="vote-number text-3xl mb-2">${o.voteCount}</div>
-                            <div class="w-full bar-${char} rounded-t-xl transition-all duration-1000" style="height: ${h}%"></div>
-                            <div class="mt-3 font-black text-xl text-white/20">${char}</div>
+                            <div class="text-3xl font-bold text-yellow-400 mb-4">${o.voteCount}</div>
+                            <div class="w-full icon-${String.fromCharCode(65+i)} rounded-t-2xl transition-all duration-1000 shadow-2xl" style="height: ${Math.max(h, 5)}%"></div>
+                            <div class="mt-4 text-xl font-bold opacity-20">${String.fromCharCode(65+i)}</div>
                         </div>
                     `;
                 }).join('')}
@@ -193,48 +185,53 @@
 
         const renderPie = (opts, total) => {
             let curr = 0;
-            const colors = ['#4ade80', '#3b82f6', '#f97316', '#ec4899'];
+            const colors = ['#4ade80', '#3b82f6', '#f97316'];
             const paths = opts.map((o, i) => {
                 const p = total > 0 ? (Number(o.voteCount) / total) : 0;
                 const x1 = Math.cos(2 * Math.PI * curr); const y1 = Math.sin(2 * Math.PI * curr);
                 curr += p;
                 const x2 = Math.cos(2 * Math.PI * curr); const y2 = Math.sin(2 * Math.PI * curr);
                 const large = p > 0.5 ? 1 : 0;
-                return `<path d="M 0 0 L ${x1} ${y1} A 1 1 0 ${large} 1 ${x2} ${y2} Z" fill="${colors[i%4]}" stroke="#000" stroke-width="0.01"></path>`;
+                return `<path d="M 0 0 L ${x1} ${y1} A 1 1 0 ${large} 1 ${x2} ${y2} Z" fill="${colors[i%3]}" stroke="rgba(0,0,0,0.1)"></path>`;
             }).join('');
-            return `
-                <div class="relative w-full h-full flex items-center justify-center">
-                    <svg viewBox="-1.02 -1.02 2.04 2.04" class="w-[300px] h-[300px] transform -rotate-90 drop-shadow-xl">${paths}</svg>
-                    <div class="absolute flex flex-col items-center justify-center">
-                        <div class="text-[10px] font-bold opacity-30 tracking-widest uppercase">Total</div>
-                        <div class="text-5xl font-black">${total}</div>
-                    </div>
-                </div>
-            `;
+            return `<svg viewBox="-1 -1 2 2" class="w-[320px] h-[320px] transform -rotate-90 drop-shadow-2xl">${paths}</svg>`;
         };
 
         const renderIdle = (root) => {
             root.innerHTML = `
                 <div class="h-screen flex flex-col items-center justify-center">
-                    <h1 class="text-6xl font-black mb-12 tracking-tighter bg-gradient-to-b from-white to-gray-500 bg-clip-text text-transparent text-center">等待題目開啟...</h1>
-                    <div class="bg-white p-6 rounded-[2rem] shadow-2xl mb-10">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://voting-event.web.app/vote" class="w-[280px] h-[280px]">
+                    <h1 class="text-7xl font-bold mb-16 text-white/30 tracking-widest animate-pulse">等待題目開啟...</h1>
+                    <div class="bg-white p-8 rounded-[3rem] shadow-[0_0_60px_rgba(255,255,255,0.1)] mb-12">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://voting-event.web.app/vote" class="w-[300px] h-[300px]">
                     </div>
-                    <p class="text-2xl font-bold text-blue-400 animate-pulse bg-blue-600/10 px-10 py-4 rounded-full border border-blue-500/20">請掃描 QR Code 準備投票</p>
+                    <p class="text-3xl font-bold text-blue-400">請掃描 QR Code 參與即時投票</p>
                 </div>
             `;
         };
 
+        // UI 行為控制
         window.setUI = (c) => { window.ui.chart = c; window.ui.hideCharts = false; render(lastData); };
         window.toggleHide = () => { window.ui.hideCharts = !window.ui.hideCharts; render(lastData); };
-        window.toggleAnswer = (s) => { window.ui.showAnswer = s; render(lastData); };
-        window.speak = (msg) => {
+        
+        window.openExpert = () => {
+            document.getElementById('expert-text').innerText = activeAnalysis;
+            document.getElementById('expert-overlay').style.display = 'flex';
+        };
+        window.closeExpert = () => {
+            document.getElementById('expert-overlay').style.display = 'none';
+        };
+        window.speak = () => {
             window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(msg); u.lang = 'zh-TW'; u.rate = 1;
+            const u = new SpeechSynthesisUtterance(activeAnalysis);
+            u.lang = 'zh-TW'; u.rate = 1;
             window.speechSynthesis.speak(u);
         };
 
-        onValue(ref(db, 'polls'), (snap) => { lastData = snap.val(); render(lastData); });
+        let lastData = null;
+        onValue(ref(db, 'polls'), (snap) => {
+            lastData = snap.val();
+            render(lastData);
+        });
     </script>
 </body>
 </html>
