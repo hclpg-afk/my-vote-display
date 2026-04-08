@@ -2,200 +2,175 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>現場投票系統 - 專業流光優化版</title>
+    <title>THE ULTIMATE SHOW - 旗艦流光對齊版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
         
         body { 
-            background: radial-gradient(circle at 50% -20%, #1e1b4b 0%, transparent 60%), #020617;
+            background: radial-gradient(circle at 50% -20%, #2e1065 0%, transparent 70%), #050508;
             font-family: 'Noto Sans TC', sans-serif;
-            color: #ffffff; height: 100vh; margin: 0; padding: 1.5rem 2rem;
+            color: #ffffff; height: 100vh; margin: 0; padding: 1rem 2rem;
             display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* 題幹：限制高度，確保下方空間 */
+        /* 題幹區塊：放大感 */
         .question-box {
-            background: rgba(255, 255, 255, 0.02);
-            backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 2rem;
-            min-height: 20vh; /* 縮減高度，留給選項 */
+            min-height: 22vh;
             display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 40px rgba(99, 102, 241, 0.1);
         }
 
-        /* 選項卡片：強制限制高度 */
+        /* 選項卡片：對齊與縮減空白 */
         .option-card {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 1.2rem;
-            padding: 0 1.5rem;
+            padding: 0.5rem 2rem;
             height: 100%;
             display: flex; align-items: center;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
         }
         .option-card.leading {
             background: rgba(255, 255, 255, 0.1);
             border-color: #fbbf24;
-            box-shadow: 0 0 30px rgba(251, 191, 36, 0.15);
+            box-shadow: 0 0 25px rgba(251, 191, 36, 0.2);
             transform: scale(1.02);
         }
 
-        /* 流光按鈕 */
+        /* 強化流光按鈕 */
         .shimmer-btn {
             position: relative; overflow: hidden;
-            background: linear-gradient(90deg, #4f46e5, #9333ea, #db2777);
+            background: linear-gradient(90deg, #4f46e5, #9333ea, #db2777, #4f46e5);
             background-size: 200% auto;
             animation: shimmerMove 3s linear infinite;
         }
         @keyframes shimmerMove { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        .shimmer-btn::after {
+            content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: linear-gradient(60deg, transparent, rgba(255,255,255,0.2), transparent);
+            transform: rotate(45deg); animation: lightPass 4s infinite;
+        }
+        @keyframes lightPass { 0% { transform: translateX(-100%) rotate(45deg); } 100% { transform: translateX(100%) rotate(45deg); } }
 
-        /* 揭曉視窗 */
+        /* 揭曉視窗動畫 */
         .reveal-overlay {
-            position: fixed; inset: 0; z-index: 1000;
+            position: fixed; inset: 0; z-index: 9999;
             background: rgba(2, 6, 23, 0.98);
+            backdrop-filter: blur(20px);
             display: none; align-items: center; justify-content: center;
-            opacity: 0; transition: all 0.6s ease;
+            opacity: 0; transition: all 0.5s ease;
         }
         .reveal-overlay.active { display: flex; opacity: 1; }
+        .reveal-content {
+            transform: scale(0.9) translateY(20px);
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .reveal-overlay.active .reveal-content { transform: scale(1) translateY(0); }
 
         .bar-anim { transition: height 1.2s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
     </style>
 </head>
 <body>
 
-    <div id="root" class="h-full flex flex-col gap-6"></div>
+    <div id="root" class="h-full flex flex-col gap-4"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
+            apiKey: "AIzaSyAt_319BG9mDYgbeZJhCWz52iMfdnaTbTE",
             databaseURL: "https://voting-event-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "voting-event"
+            projectId: "voting-event",
+            appId: "1:680113677727:web:8dc23a48f35b0bcb0b09aa"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // 新增 lastActiveId 追蹤
-        window.ui = { showAnswer: false, lastActiveId: null };
-        const colors = ['#818cf8', '#34d399', '#f97316', '#f472b6'];
+        window.ui = { showAnswer: false, chart: 'bar', currentPollId: null };
+        const syncColors = ['#818cf8', '#34d399', '#fbbf24', '#f472b6'];
+        let rawData = null;
 
-        // 優化解析抓取邏輯
-        const findAnalysis = (poll) => {
-            if (poll.expertAnalysis) return poll.expertAnalysis;
-            if (poll.analysis) return poll.analysis;
-            let longest = "";
-            const scan = (item) => {
-                if (typeof item === 'string' && item !== poll.question) {
-                    if (item.length > longest.length) longest = item;
-                } else if (item && typeof item === 'object') {
-                    Object.values(item).forEach(scan);
+        // 【核心修正】地毯式搜尋答案文字
+        const findExpertAnalysis = (poll) => {
+            if (!poll) return "載入中...";
+            // 優先搜尋明確的欄位
+            const priorityKeys = ['expertAnalysis', 'analysis', 'expertMsg', 'description', 'expert'];
+            for (let key of priorityKeys) {
+                if (poll[key] && typeof poll[key] === 'string' && poll[key].length > 2) return poll[key];
+            }
+            // 如果都沒找到，掃描所有字串內容，排除掉題目本身
+            let foundText = "";
+            const deepScan = (obj) => {
+                if (typeof obj === 'string' && obj !== poll.question && obj.length > foundText.length) {
+                    foundText = obj;
+                } else if (obj && typeof obj === 'object') {
+                    Object.values(obj).forEach(deepScan);
                 }
             };
-            scan(poll);
-            return longest || "分析資料準備中...";
+            deepScan(poll);
+            return foundText || "數據分析完成，請參考現場專家講解。";
         };
 
         const render = () => {
-            if (!window.rawData) return;
-            const activeEntry = Object.entries(window.rawData).find(([id, p]) => p.isActive === true);
+            if (!rawData) return;
+            const root = document.getElementById('root');
+            const activeEntry = Object.entries(rawData).find(([id, p]) => p.isActive === true);
             
             if (!activeEntry) {
-                document.getElementById('root').innerHTML = `
-                    <div class="h-full flex flex-col items-center justify-center gap-10">
-                        <div class="opacity-20 text-4xl font-light tracking-tighter italic">WAITING FOR STAGE START...</div>
-                        <div class="bg-white p-4 rounded-3xl"><img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://voting-event.web.app/vote" class="w-48 h-48"></div>
-                    </div>`;
-                window.ui.lastActiveId = null;
+                root.innerHTML = `<div class="h-full flex items-center justify-center opacity-30 text-2xl font-light">WAITING FOR STAGE START...</div>`;
                 return;
             }
 
-            const [id, poll] = activeEntry;
-
-            // ⚡️ 自動重置機制：如果切換題目，則關閉解答視窗
-            if (window.ui.lastActiveId !== id) {
-                window.ui.lastActiveId = id;
-                window.ui.showAnswer = false;
-            }
-
+            const [pollId, poll] = activeEntry;
             const options = Object.values(poll.options || {});
             const total = options.reduce((s, o) => s + (Number(o.voteCount) || 0), 0);
             const maxVotes = Math.max(...options.map(o => o.voteCount));
-            const analysis = findAnalysis(poll);
+            const expertMsg = findExpertAnalysis(poll);
+            const chartMode = window.ui.chart;
 
-            document.getElementById('root').innerHTML = `
+            root.innerHTML = `
                 <div class="flex justify-between items-center shrink-0">
                     <div class="flex items-center gap-2 bg-red-600/20 px-4 py-1.5 rounded-full border border-red-600/30">
                         <div class="w-2 h-2 bg-red-600 rounded-full animate-ping"></div>
-                        <span class="text-[10px] font-bold tracking-[0.2em] uppercase">Stage Live</span>
+                        <span class="text-[10px] font-bold tracking-widest uppercase">Stage Live</span>
+                    </div>
+                    <div class="flex bg-white/10 p-1 rounded-xl">
+                        <button onclick="window.setUI('bar')" class="px-4 py-1.5 rounded-lg text-[10px] font-bold ${chartMode==='bar'?'bg-white text-black':'opacity-50'}">BAR</button>
+                        <button onclick="window.setUI('pie')" class="px-4 py-1.5 rounded-lg text-[10px] font-bold ${chartMode==='pie'?'bg-white text-black':'opacity-50'}">PIE</button>
                     </div>
                     <div class="text-right">
-                        <span class="text-xs opacity-40 mr-3 tracking-widest uppercase">Cumulative Votes</span>
-                        <span class="text-5xl font-light tabular-nums text-yellow-400">${total}</span>
+                        <span class="text-[10px] opacity-40 font-bold uppercase mr-3">Cumulative</span>
+                        <span class="text-4xl font-light tabular-nums text-yellow-400">${total}</span>
                     </div>
                 </div>
 
-                <div class="question-box px-16 py-6">
-                    <h1 class="text-4xl md:text-5xl font-light text-center leading-snug text-white/90">Q: ${poll.question}</h1>
+                <div class="question-box p-8 shrink-0">
+                    <h1 class="text-3xl md:text-4xl font-light text-center leading-snug text-white/90">Q: ${poll.question}</h1>
                 </div>
 
-                <div class="flex-1 min-h-0 flex gap-8">
-                    <div class="flex-1 bg-white/[0.02] rounded-[2.5rem] border border-white/5 p-10 flex items-end justify-around gap-8">
+                <div class="flex-1 min-h-0 flex gap-6 overflow-hidden">
+                    ${chartMode !== 'none' ? `
+                    <div class="flex-1 flex items-end justify-around bg-white/[0.02] rounded-[2.5rem] border border-white/5 p-10 gap-8">
                         ${options.map((o, i) => {
                             const h = total > 0 ? (o.voteCount / total * 100) : 5;
                             return `
                             <div class="flex-1 flex flex-col items-center h-full justify-end">
-                                <span class="mb-3 text-lg font-bold opacity-80" style="color:${colors[i%4]}">${o.voteCount}</span>
-                                <div class="w-full rounded-t-xl bar-anim shadow-lg shadow-${colors[i%4]}/20" style="height:${Math.max(h, 5)}%; background:${colors[i%4]}"></div>
-                                <span class="mt-4 text-2xl font-light opacity-50">${String.fromCharCode(65+id === 'a' ? 65 : 65+i)}</span>
+                                <span class="mb-3 text-lg font-bold" style="color:${syncColors[i%4]}">${o.voteCount}</span>
+                                <div class="w-full rounded-t-xl bar-anim" style="height:${Math.max(h, 5)}%; background:${syncColors[i%4]}; box-shadow: 0 0 30px ${syncColors[i%4]}33"></div>
+                                <span class="mt-4 text-2xl font-light opacity-30">${String.fromCharCode(65+i)}</span>
                             </div>`
                         }).join('')}
-                    </div>
+                    </div>` : ''}
 
-                    <div class="w-5/12 flex flex-col gap-3">
+                    <div class="${chartMode !== 'none' ? 'w-5/12' : 'w-full'} flex flex-col gap-3">
                         ${options.map((o, i) => {
                             const isLeader = o.voteCount === maxVotes && maxVotes > 0;
                             return `
-                            <div class="flex-1 min-h-0">
-                                <div class="option-card ${isLeader ? 'leading' : ''}">
-                                    <div class="text-4xl font-light mr-6 shrink-0" style="color:${colors[i%4]}">${String.fromCharCode(65+i)}</div>
-                                    <div class="flex-1 text-2xl font-light truncate">${o.text || o.label}</div>
-                                    ${isLeader ? '<div class="text-2xl ml-2 animate-bounce">👑</div>' : ''}
-                                </div>
-                            </div>`
-                        }).join('')}
-                    </div>
-                </div>
-
-                <button onclick="window.toggleReveal(true)" class="shimmer-btn w-full h-20 rounded-2xl text-2xl font-bold shadow-[0_10px_40px_rgba(79,70,229,0.3)] tracking-[0.5em]">
-                    揭 曉 專 家 權 威 分 析
-                </button>
-
-                <div id="reveal-layer" class="reveal-overlay ${window.ui.showAnswer ? 'active' : ''}">
-                    <div class="reveal-content max-w-5xl text-center px-12">
-                        <p class="text-indigo-400 text-sm tracking-[0.8em] mb-12 uppercase opacity-60">Result Analysis Completed</p>
-                        <h2 class="text-4xl md:text-6xl font-light leading-snug mb-24 text-white">「 ${analysis} 」</h2>
-                        <button onclick="window.toggleReveal(false)" class="px-16 py-5 rounded-full bg-white text-black font-bold text-xl hover:scale-105 active:scale-95 transition-all shadow-2xl">
-                            返回計票現場
-                        </button>
-                    </div>
-                </div>
-            `;
-        };
-
-        window.toggleReveal = (s) => {
-            window.ui.showAnswer = s;
-            const el = document.getElementById('reveal-layer');
-            if (s) { el.style.display = 'flex'; setTimeout(() => el.classList.add('active'), 50); }
-            else { el.classList.remove('active'); setTimeout(() => el.style.display = 'none', 600); }
-        };
-
-        onValue(ref(db, 'polls'), (snap) => {
-            window.rawData = snap.val();
-            render();
-        });
-    </script>
-</body>
-</html>
+                            <div class="flex-1 min-
