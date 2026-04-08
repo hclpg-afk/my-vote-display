@@ -2,58 +2,46 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>現場投票系統 - 專業版</title>
+    <title>現場投票系統 - 恢復連線版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&display=swap');
         
         body { 
-            background: radial-gradient(circle at 50% -20%, #4f46e5 0%, transparent 60%), #050508;
+            background: radial-gradient(circle at 50% -20%, #4338ca 0%, transparent 60%), #020617;
             font-family: 'Noto Sans TC', sans-serif;
             color: #ffffff; height: 100vh; margin: 0; padding: 1rem 2rem;
             display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* 題幹：字體放大，粗度適中 */
+        /* 題幹區塊：設定為 28% 螢幕高度，字體大且細 */
         .question-box {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(15px);
-            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 2rem;
-            min-height: 25vh;
+            min-height: 28vh;
             display: flex; align-items: center; justify-content: center;
         }
 
-        /* 控制按鈕中文版 */
-        .control-bar button {
-            transition: all 0.2s ease; border: 1px solid rgba(255, 255, 255, 0.2); font-weight: 500;
-        }
-        .control-bar button.active {
-            background: #ffffff; color: #000; box-shadow: 0 0 15px #ffffff;
-        }
-
-        /* 選項卡片：減少上下留白，放大文字 */
+        /* 選項卡片：減少上下留白，文字加大至 3xl */
         .option-card {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 1.2rem;
-            padding: 0.5rem 2rem; /* 極小化留白 */
+            padding: 0 2rem;
             height: 100%;
             display: flex; align-items: center;
         }
         .option-card.leading {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: #fbbf24;
-            box-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+            background: rgba(255, 255, 255, 0.12);
+            border-color: #f59e0b;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
         }
 
-        /* 全螢幕揭曉層 */
-        .reveal-overlay {
-            position: fixed; inset: 0; z-index: 9999;
-            background: rgba(5, 5, 10, 0.98);
-            display: none; align-items: center; justify-content: center;
+        .control-btn.active {
+            background: #ffffff; color: #000; font-weight: 500;
         }
-        .reveal-overlay.active { display: flex; }
     </style>
 </head>
 <body>
@@ -64,13 +52,11 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+        // 【關鍵修正】連回您有資料的那個正確網址
         const firebaseConfig = {
             apiKey: "AIzaSyAt_319BG9mDYgbeZJhCWz52iMfdnaTbTE",
-            authDomain: "voting-event.firebaseapp.com",
             databaseURL: "https://voting-event-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "voting-event",
-            storageBucket: "voting-event.firebasestorage.app",
-            messagingSenderId: "680113677727",
             appId: "1:680113677727:web:8dc23a48f35b0bcb0b09aa"
         };
 
@@ -79,118 +65,100 @@
 
         window.ui = { showAnswer: false, chart: 'bar', currentPollId: null };
         const syncColors = ['#818cf8', '#34d399', '#fbbf24', '#f472b6'];
-        let rawData = null;
 
-        // 【核心更新】超級抓解答邏輯：如果找不到欄位，就找物件中最長的一段話
-        const findAnalysisText = (poll) => {
-            if (!poll) return "載入中...";
-            // 優先找已知欄位
-            const priorityKeys = ['expertAnalysis', 'analysis', 'expert', 'expertMsg', 'desc', 'description'];
-            for (let key of priorityKeys) {
-                if (poll[key] && typeof poll[key] === 'string' && poll[key].length > 2) return poll[key];
-            }
-            // 暴力搜尋：找物件裡最長的字串（排除問題本身）
-            let longestText = "";
-            Object.keys(poll).forEach(k => {
-                if (typeof poll[k] === 'string' && k !== 'question' && k !== 'id') {
-                    if (poll[k].length > longestText.length) longestText = poll[k];
+        // 超級掃描邏輯：在整個物件中找出最長的那段文字作為分析內容
+        const findAnalysis = (obj) => {
+            let longest = "";
+            const scan = (item) => {
+                if (typeof item === 'string') {
+                    if (item.length > longest.length && item !== window.currentQuestion) {
+                        longest = item;
+                    }
+                } else if (item && typeof item === 'object') {
+                    Object.values(item).forEach(scan);
                 }
-            });
-            return longestText || "暫無專家分析內容";
+            };
+            scan(obj);
+            return longest.length > 5 ? longest : "專家分析資料載入中...";
         };
 
         const render = () => {
-            if (!rawData) return;
+            if (!window.rawData) return;
             const root = document.getElementById('root');
-            const activeEntry = Object.entries(rawData).find(([id, p]) => p.isActive);
+            // 找出當前啟動的題目
+            const activeEntry = Object.entries(window.rawData).find(([id, p]) => p.isActive === true);
+            
             if (!activeEntry) {
-                root.innerHTML = `<div class="h-full flex items-center justify-center opacity-30 text-2xl font-bold">等待下一場活動開始...</div>`;
+                root.innerHTML = `<div class="h-full flex items-center justify-center text-xl font-light opacity-40">請在後台開啟一個投票項目...</div>`;
                 return;
             }
 
             const [pollId, poll] = activeEntry;
+            window.currentQuestion = poll.question;
             const options = Object.values(poll.options || {});
             const total = options.reduce((s, o) => s + (Number(o.voteCount) || 0), 0);
             const maxVotes = Math.max(...options.map(o => o.voteCount));
-            const analysisContent = findAnalysisText(poll);
-            const chartMode = window.ui.chart;
+            const analysisText = findAnalysis(poll);
 
             root.innerHTML = `
                 <div class="flex justify-between items-center shrink-0">
-                    <div class="bg-red-600 px-4 py-1 rounded-full text-sm font-bold animate-pulse">● 現場直播中</div>
-                    
-                    <div class="control-bar flex bg-white/10 p-1 rounded-xl">
-                        <button onclick="window.setUI('bar')" class="px-5 py-1.5 rounded-lg text-xs ${chartMode==='bar'?'active':''}">長條圖</button>
-                        <button onclick="window.setUI('pie')" class="px-5 py-1.5 rounded-lg text-xs ${chartMode==='pie'?'active':''}">圓餅圖</button>
-                        <button onclick="window.setUI('none')" class="px-5 py-1.5 rounded-lg text-xs ${chartMode==='none'?'active':''}">隱藏</button>
+                    <div class="bg-red-500 px-4 py-1 rounded-full text-xs font-bold animate-pulse">● 現場直播</div>
+                    <div class="flex bg-white/5 p-1 rounded-xl border border-white/10">
+                        <button onclick="window.setUI('bar')" class="control-btn px-6 py-1.5 rounded-lg text-xs ${window.ui.chart==='bar'?'active':''}">長條圖</button>
+                        <button onclick="window.setUI('pie')" class="control-btn px-6 py-1.5 rounded-lg text-xs ${window.ui.chart==='pie'?'active':''}">圓餅圖</button>
+                        <button onclick="window.setUI('none')" class="control-btn px-6 py-1.5 rounded-lg text-xs ${window.ui.chart==='none'?'active':''}">隱藏</button>
                     </div>
-
-                    <div class="text-right">
-                        <span class="text-xs opacity-60 font-bold mr-2">累計票數</span>
-                        <span class="text-4xl font-bold tabular-nums">${total}</span>
-                    </div>
+                    <div class="text-right"><span class="text-xs opacity-50 mr-2">總票數</span><span class="text-4xl font-bold">${total}</span></div>
                 </div>
 
-                <div class="question-box p-10 shrink-0">
-                    <h1 class="text-4xl md:text-5xl font-bold text-center leading-snug text-white/95">${poll.question}</h1>
+                <div class="question-box px-12 py-8 shrink-0">
+                    <h1 class="text-4xl md:text-5xl font-light text-center leading-tight text-white/90">${poll.question}</h1>
                 </div>
 
-                <div class="flex-1 min-h-0 flex gap-6 overflow-hidden">
-                    
-                    ${chartMode !== 'none' ? `
-                    <div class="flex-1 flex items-center justify-center bg-white/5 rounded-[2rem] border border-white/5 p-6 min-h-0">
-                        ${chartMode === 'bar' ? renderBar(options, total) : renderPie(options, total)}
-                    </div>
-                    ` : ''}
+                <div class="flex-1 min-h-0 flex gap-6">
+                    ${window.ui.chart !== 'none' ? `
+                    <div class="flex-1 bg-white/5 rounded-[2.5rem] p-8 flex items-center justify-center">
+                        ${window.ui.chart === 'bar' ? renderBar(options, total) : renderPie(options, total)}
+                    </div>` : ''}
 
-                    <div class="${chartMode !== 'none' ? 'w-1/2' : 'w-full'} flex flex-col gap-3 min-h-0">
+                    <div class="${window.ui.chart !== 'none' ? 'w-1/2' : 'w-full'} flex flex-col gap-3">
                         ${options.map((o, i) => {
                             const isLeader = o.voteCount === maxVotes && maxVotes > 0;
                             return `
                             <div class="flex-1 min-h-0">
                                 <div class="option-card ${isLeader ? 'leading' : ''}">
-                                    <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-4xl font-bold mr-6 shrink-0" 
-                                         style="background: ${syncColors[i%4]}22; color: ${syncColors[i%4]}">
-                                        ${String.fromCharCode(65+i)}
-                                    </div>
-                                    <div class="flex-1 text-3xl font-medium leading-tight">${o.text || o.label}</div>
+                                    <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-4xl font-light mr-6" style="color:${syncColors[i%4]}">${String.fromCharCode(65+i)}</div>
+                                    <div class="flex-1 text-3xl font-light">${o.text || o.label}</div>
                                     ${isLeader ? '<div class="text-4xl ml-4">👑</div>' : ''}
                                 </div>
-                            </div>
-                        `}).join('')}
+                            </div>`
+                        }).join('')}
                     </div>
                 </div>
 
-                <button onclick="window.triggerReveal()" class="bg-gradient-to-r from-pink-600 to-indigo-600 w-full h-20 rounded-2xl text-2xl font-bold shrink-0 shadow-2xl">
+                <button onclick="window.toggleAnswer(true)" class="bg-gradient-to-r from-rose-500 to-indigo-600 w-full h-20 rounded-2xl text-2xl font-bold shadow-2xl">
                     🔥 揭 曉 專 家 權 威 分 析 🔥
                 </button>
 
-                <div id="reveal-layer" class="reveal-overlay">
-                    <div class="max-w-5xl w-full text-center px-10">
-                        <div class="text-indigo-400 text-sm font-bold tracking-[0.5em] mb-12 uppercase">數 據 分 析 報 告</div>
-                        <h2 class="text-5xl font-bold leading-relaxed mb-20 text-white/90">「 ${analysisContent} 」</h2>
-                        <div class="flex justify-center gap-8">
-                            <button onclick="window.speak('${analysisContent.replace(/'/g, "\\'")}')" class="px-12 py-5 rounded-full border border-white/20 hover:bg-white/10 text-xl font-medium transition">播放語音說明</button>
-                            <button onclick="window.toggleAnswer(false)" class="px-16 py-5 rounded-full bg-white text-black font-bold text-xl">返回投票現場</button>
-                        </div>
+                <div id="reveal-layer" class="fixed inset-0 bg-slate-950/98 flex items-center justify-center z-[99] ${window.ui.showAnswer ? '' : 'hidden'}">
+                    <div class="max-w-4xl text-center px-10">
+                        <div class="text-indigo-400 text-sm tracking-[0.4em] mb-10">專 家 分 析</div>
+                        <h2 class="text-4xl font-light leading-relaxed mb-20">「 ${analysisText} 」</h2>
+                        <button onclick="window.toggleAnswer(false)" class="px-16 py-5 rounded-full bg-white text-black font-bold text-xl">返回投票現場</button>
                     </div>
                 </div>
             `;
-            if (window.ui.showAnswer) document.getElementById('reveal-layer').classList.add('active');
         };
 
         const renderBar = (opts, total) => `
-            <div class="flex items-end justify-around w-full h-[80%] gap-6 px-4">
+            <div class="flex items-end justify-around w-full h-full gap-8 px-4">
                 ${opts.map((o, i) => {
                     const h = total > 0 ? (Number(o.voteCount) / total * 100) : 5;
                     return `
                         <div class="flex-1 flex flex-col items-center h-full justify-end">
-                            <div class="w-full rounded-t-2xl transition-all duration-1000" 
-                                 style="height: ${h}%; background: ${syncColors[i%4]}; box-shadow: 0 0 30px ${syncColors[i%4]}44;">
-                            </div>
-                            <div class="mt-6 text-2xl font-bold" style="color:${syncColors[i%4]}">${String.fromCharCode(65+i)}</div>
-                        </div>
-                    `;
+                            <div class="w-full rounded-t-2xl transition-all duration-1000" style="height:${h}%; background:${syncColors[i%4]};"></div>
+                            <div class="mt-4 text-2xl font-light" style="color:${syncColors[i%4]}">${String.fromCharCode(65+i)}</div>
+                        </div>`
                 }).join('')}
             </div>
         `;
@@ -205,27 +173,14 @@
                 const x2 = Math.cos(2 * Math.PI * curr), y2 = Math.sin(2 * Math.PI * curr);
                 return `<path d="M 0 0 L ${x1} ${y1} A 1 1 0 ${p > 0.5 ? 1 : 0} 1 ${x2} ${y2} Z" fill="${syncColors[i%4]}"></path>`;
             }).join('');
-            return `<div class="relative w-full h-full flex items-center justify-center"><svg viewBox="-1 -1 2 2" class="transform -rotate-90 w-full h-full scale-125">${paths}</svg></div>`;
+            return `<svg viewBox="-1 -1 2 2" class="w-full h-full transform -rotate-90 scale-110">${paths}</svg>`;
         };
 
         window.setUI = (c) => { window.ui.chart = c; render(); };
         window.toggleAnswer = (s) => { window.ui.showAnswer = s; render(); };
-        window.triggerReveal = () => { window.toggleAnswer(true); };
-        window.speak = (msg) => {
-            window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(msg); u.lang = 'zh-TW'; u.rate = 1;
-            window.speechSynthesis.speak(u);
-        };
 
         onValue(ref(db, 'polls'), (snap) => {
-            const data = snap.val();
-            if (!data) return;
-            rawData = data;
-            const activeEntry = Object.entries(data).find(([id, p]) => p.isActive);
-            if (activeEntry && activeEntry[0] !== window.ui.currentPollId) {
-                window.ui.showAnswer = false;
-                window.ui.currentPollId = activeEntry[0];
-            }
+            window.rawData = snap.val();
             render();
         });
     </script>
