@@ -12,6 +12,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+        // 你的金鑰配置
         const firebaseConfig = {
             apiKey: "AIzaSyAt_319BG9mDYgbeZJhCWz52iMfdnaTbTE",
             authDomain: "voting-event.firebaseapp.com",
@@ -24,9 +25,8 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-
         const { useState, useEffect } = React;
-        const { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = Recharts;
+        const { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } = Recharts;
 
         const COLORS = ['#22c55e', '#3b82f6', '#f97316', '#8b5cf6', '#ec4899', '#14b8a6'];
 
@@ -35,90 +35,89 @@
             const [showCharts, setShowCharts] = useState(true);
 
             useEffect(() => {
-                // 修改路徑，嘗試抓取整個 polls 分支來過濾出 isActive 的題目
                 const pollsRef = ref(db, 'polls');
                 return onValue(pollsRef, (snapshot) => {
                     const allPolls = snapshot.val();
                     if (allPolls) {
-                        // 找到目前正在啟動 (isActive) 的那一題
-                        const activePoll = Object.values(allPolls).find(p => p.isActive === true) || Object.values(allPolls)[0];
-                        setPoll(activePoll);
+                        // 尋找 isActive 為 true 的題目
+                        const activeKey = Object.keys(allPolls).find(key => allPolls[key].isActive === true);
+                        if (activeKey) {
+                            const p = allPolls[activeKey];
+                            // 格式化選項資料
+                            const formattedOptions = p.options ? Object.entries(p.options).map(([id, opt]) => ({
+                                name: opt.text || opt.label || "選項",
+                                value: opt.voteCount || 0,
+                                sortOrder: opt.sortOrder || 0
+                            })).sort((a, b) => a.sortOrder - b.sortOrder) : [];
+                            
+                            setPoll({ ...p, formattedOptions });
+                        } else {
+                            setPoll("NO_ACTIVE");
+                        }
                     }
                 });
             }, []);
 
-            if (!poll) return <div className="flex h-screen items-center justify-center text-2xl font-bold text-slate-400">正在連線至資料庫...</div>;
-
-            const data = poll.options?.map((opt, index) => ({
-                name: opt.text || opt.label || "未命名選項",
-                value: opt.voteCount || 0
-            })) || [];
+            if (!poll) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white text-2xl font-black animate-pulse">📡 正在連線資料庫...</div>;
+            
+            if (poll === "NO_ACTIVE") return (
+                <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-10">
+                    <div className="text-8xl mb-6">⏳</div>
+                    <h1 className="text-4xl font-bold">等待主持人開題</h1>
+                    <p className="mt-4 opacity-50 text-xl text-center">請在管理後台將題目設為「isActive」</p>
+                </div>
+            );
 
             return (
-                <div className="min-h-screen bg-slate-950 p-6 md:p-12 text-white font-sans">
-                    <div className="max-w-7xl mx-auto mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                        <div className="flex-1">
-                            <h2 className="text-blue-500 text-sm font-black tracking-widest mb-2">LIVE RESULTS</h2>
-                            <h1 className="text-3xl md:text-5xl font-extrabold leading-tight">{poll.question}</h1>
-                        </div>
+                <div className="min-h-screen bg-slate-950 p-6 md:p-12 text-white overflow-x-hidden">
+                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+                        <h1 className="text-4xl md:text-6xl font-black text-center md:text-left leading-tight flex-1">
+                            <span className="text-blue-500 mr-4">Q.</span>{poll.question}
+                        </h1>
                         <button 
                             onClick={() => setShowCharts(!showCharts)}
-                            className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black shadow-lg transition-all active:scale-95 text-lg"
+                            className="px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-black text-xl shadow-lg transition-transform active:scale-95 whitespace-nowrap"
                         >
-                            {showCharts ? "👀 隱藏圖表" : "📊 顯示圖表"}
+                            {showCharts ? "📊 隱藏圖表" : "📊 顯示圖表"}
                         </button>
                     </div>
 
-                    <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-10">
-                        <div className={`transition-all duration-700 ${showCharts ? 'lg:w-1/2' : 'w-full'}`}>
-                            <div className="bg-slate-900 rounded-3xl p-8 border border-white/10 shadow-2xl">
-                                <div className="space-y-4">
-                                    {data.map((entry, index) => (
-                                        <div key={index} className="flex items-center justify-between p-6 bg-white/5 rounded-2xl">
-                                            <div className="text-xl md:text-2xl font-bold break-words flex-1 pr-4">
-                                                <span className="opacity-30 mr-3">{index + 1}.</span>{entry.name}
-                                            </div>
-                                            <div className="text-3xl font-black text-blue-400">{entry.value} 票</div>
+                    <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8">
+                        <div className={`${showCharts ? 'lg:w-1/2' : 'w-full'} space-y-4 transition-all duration-500`}>
+                            <div className="bg-slate-900/80 rounded-[2rem] p-8 border border-white/10">
+                                {poll.formattedOptions.map((opt, i) => (
+                                    <div key={i} className="flex items-center justify-between p-5 bg-white/5 rounded-2xl mb-4 border border-white/5">
+                                        <div className="text-xl md:text-2xl font-bold flex-1 pr-4 break-words leading-snug">
+                                            <span className="opacity-30 mr-3">{i+1}.</span>{opt.name}
                                         </div>
-                                    ))}
-                                </div>
+                                        <div className="text-3xl font-black text-blue-400 tabular-nums">{opt.value} 票</div>
+                                    </div>
+                                ))}
                                 {poll.expertAnswer && (
-                                    <div className="mt-8 p-6 bg-emerald-500/20 border border-emerald-500/50 rounded-2xl">
-                                        <p className="text-emerald-400 font-bold mb-1">💡 解答說明</p>
-                                        <p className="text-xl">{poll.expertAnswer}</p>
+                                    <div className="mt-8 p-6 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl">
+                                        <p className="text-emerald-400 font-bold mb-1">💡 專家解析</p>
+                                        <p className="text-lg opacity-90 leading-relaxed">{poll.expertAnswer}</p>
                                     </div>
                                 )}
                             </div>
                         </div>
 
                         {showCharts && (
-                            <div className="lg:w-1/2 space-y-8">
-                                <div className="bg-slate-900 rounded-3xl p-6 h-[400px] border border-white/10">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={120} paddingAngle={5} dataKey="value">
-                                                {data.map((_, index) => (
-                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip contentStyle={{backgroundColor: '#0f172a', border: 'none', borderRadius: '12px'}} />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                <div className="bg-slate-900 rounded-3xl p-6 h-[300px] border border-white/10 text-slate-900">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={data}>
-                                            <XAxis dataKey="name" hide />
-                                            <YAxis hide />
-                                            <Tooltip cursor={{fill: '#ffffff05'}} contentStyle={{backgroundColor: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff'}} />
-                                            <Bar dataKey="value" radius={[10, 10, 0, 0]}>
-                                                {data.map((_, index) => (
-                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                ))}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
+                            <div className="lg:w-1/2 bg-slate-900/80 rounded-[2rem] p-6 border border-white/10 h-[500px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie 
+                                            data={poll.formattedOptions} 
+                                            cx="50%" cy="50%" 
+                                            innerRadius="50%" outerRadius="80%" 
+                                            paddingAngle={5} dataKey="value"
+                                            label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                        >
+                                            {poll.formattedOptions.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                                        </Pie>
+                                        <Tooltip contentStyle={{backgroundColor: '#0f172a', border: 'none', borderRadius: '12px'}} />
+                                    </PieChart>
+                                </ResponsiveContainer>
                             </div>
                         )}
                     </div>
