@@ -180,4 +180,70 @@
                                 「 ${expertMsg} 」
                             </h2>
                             <div class="flex justify-center gap-6">
-                                <button onclick="window.speak('${expertMsg.replace(/'/g,
+                                <button onclick="window.speak('${expertMsg.replace(/'/g, "\\'")}')" class="bg-cyan-500 text-white px-16 py-5 rounded-full text-2xl font-bold hover:scale-105 transition shadow-xl">🔊 語音播放</button>
+                                <button onclick="window.toggleAnswer(false)" class="bg-white/10 text-white px-16 py-5 rounded-full text-2xl font-bold hover:bg-white/20 transition">返回</button>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+        };
+
+        const renderBar = (opts, total) => `
+            <div class="flex items-end justify-around w-full h-[320px] gap-6">
+                ${opts.map((o, i) => {
+                    const h = total > 0 ? (Number(o.voteCount) / total * 100) : 5;
+                    return `
+                        <div class="flex-1 flex flex-col items-center h-full justify-end">
+                            <div class="vote-display text-3xl mb-4">${o.voteCount}</div>
+                            <div class="w-full bg-gradient-to-t from-blue-600 to-cyan-300 rounded-t-xl shadow-[0_0_20px_rgba(34,211,238,0.3)]" style="height: ${h}%"></div>
+                            <div class="mt-4 font-bold text-xl text-white/30">${String.fromCharCode(65+i)}</div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+
+        const renderPie = (opts, total) => {
+            let curr = 0;
+            const colors = ['#3b82f6', '#06b6d4', '#8b5cf6', '#ec4899'];
+            const paths = opts.map((o, i) => {
+                const p = total > 0 ? (Number(o.voteCount) / total) : 0;
+                if (p === 0) return '';
+                const x1 = Math.cos(2 * Math.PI * curr); const y1 = Math.sin(2 * Math.PI * curr);
+                curr += p;
+                const x2 = Math.cos(2 * Math.PI * curr); const y2 = Math.sin(2 * Math.PI * curr);
+                const large = p > 0.5 ? 1 : 0;
+                // 若比例為 100%，直接畫滿圓以避免破圖
+                if (p === 1) {
+                    return `<circle cx="0" cy="0" r="1" fill="${colors[i%4]}"></circle>`;
+                }
+                return `<path d="M 0 0 L ${x1} ${y1} A 1 1 0 ${large} 1 ${x2} ${y2} Z" fill="${colors[i%4]}"></path>`;
+            }).join('');
+            return `
+                <div class="pie-container relative flex items-center justify-center">
+                    <svg viewBox="-1.02 -1.02 2.04 2.04" class="transform -rotate-90 drop-shadow-2xl w-full h-full">${paths}</svg>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <div class="text-sm font-bold opacity-70 mb-1 drop-shadow-md text-white">總票數</div>
+                        <div class="text-5xl font-bold drop-shadow-lg text-white">${total}</div>
+                    </div>
+                </div>
+            `;
+        };
+
+        window.setUI = (c) => { window.ui.chart = c; render(); };
+        window.toggleAnswer = (s) => { window.ui.showAnswer = s; render(); };
+        window.speak = (msg) => {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(msg);
+            u.lang = 'zh-TW'; u.rate = 0.95;
+            window.speechSynthesis.speak(u);
+        };
+
+        onValue(ref(db, 'polls'), (snap) => {
+            rawData = snap.val();
+            render();
+        });
+    </script>
+</body>
+</html>
