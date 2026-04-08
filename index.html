@@ -2,12 +2,12 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>最終除錯版</title>
+    <title>即時投票展示系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-white p-10 font-sans">
     <div id="main-display">
-        <h1 class="text-2xl animate-pulse">正在嘗試從 Firebase 撈取所有資料...</h1>
+        <h1 class="text-2xl animate-pulse text-blue-400">📡 正在從 polls 資料夾讀取題目...</h1>
     </div>
 
     <script type="module">
@@ -28,48 +28,48 @@
         const db = getDatabase(app);
         const display = document.getElementById('main-display');
 
-        // 這次我們直接從根目錄監聽，看看裡面到底有什麼
-        onValue(ref(db, '/'), (snapshot) => {
-            const allData = snapshot.val();
-            if (!allData) {
-                display.innerHTML = "<h1>❌ 資料庫是空的</h1>";
-                return;
-            }
+        // 精準監聽 polls 路徑，避開根目錄權限限制
+        const pollsRef = ref(db, 'polls');
 
-            // 尋找 polls 裡面的內容
-            const polls = allData.polls;
+        onValue(pollsRef, (snapshot) => {
+            const polls = snapshot.val();
             if (!polls) {
-                display.innerHTML = "<h1>❌ 找不到 polls 資料夾</h1>";
+                display.innerHTML = "<h1>❌ 讀取成功，但 polls 資料夾裡沒有任何題目</h1>";
                 return;
             }
 
-            // 暴力搜尋法：找出任何一個有 question 的物件
-            let targetPoll = null;
-            Object.values(polls).forEach(p => {
-                if (p && p.question) targetPoll = p;
-            });
+            // 找出 isActive 為 true 的題目，或最後一個題目
+            const entries = Object.entries(polls);
+            let target = entries.find(([id, val]) => val.isActive === true);
+            if (!target) target = entries[entries.length - 1];
 
-            if (targetPoll) {
-                let optionsHtml = "";
-                const opts = targetPoll.options || {};
-                Object.values(opts).forEach(o => {
+            const [id, pollData] = target;
+            
+            let optionsHtml = "";
+            if (pollData.options) {
+                Object.values(pollData.options).forEach(o => {
                     optionsHtml += `
-                        <div class="p-6 bg-blue-900/30 rounded-2xl mb-4 border border-blue-500/20 flex justify-between">
-                            <span class="text-2xl font-bold">${o.text || o.label || "選項"}</span>
-                            <span class="text-3xl font-black text-blue-400">${o.voteCount || 0} 票</span>
+                        <div class="p-8 bg-white/5 rounded-[2rem] mb-4 border border-white/10 flex justify-between items-center">
+                            <span class="text-3xl font-bold">${o.text || o.label || "選項"}</span>
+                            <span class="text-4xl font-black text-blue-400">${o.voteCount || 0} <span class="text-xl font-normal opacity-40">票</span></span>
                         </div>
                     `;
                 });
-
-                display.innerHTML = `
-                    <h1 class="text-5xl font-black mb-10 text-white">${targetPoll.question}</h1>
-                    <div class="max-w-3xl">${optionsHtml}</div>
-                `;
-            } else {
-                display.innerHTML = "<h1>❌ 找到 polls 了，但裡面沒有題目資料</h1>";
             }
+
+            display.innerHTML = `
+                <div class="max-w-4xl mx-auto">
+                    <p class="text-blue-500 font-black mb-2">LIVE VOTING</p>
+                    <h1 class="text-5xl md:text-7xl font-black mb-12 tracking-tight">${pollData.question || "未命名題目"}</h1>
+                    <div class="grid gap-4">${optionsHtml}</div>
+                </div>
+            `;
         }, (err) => {
-            display.innerHTML = `<h1 class="text-red-500">❌ 權限錯誤: ${err.message}</h1>`;
+            display.innerHTML = `<div class="p-10 bg-red-500/10 border border-red-500/50 rounded-2xl">
+                <h1 class="text-red-500 text-2xl font-bold mb-2">❌ 存取失敗</h1>
+                <p class="opacity-70">Firebase 訊息: ${err.message}</p>
+                <p class="mt-4 text-sm">請確認資料庫 Rules 是否包含 "polls": { ".read": true }</p>
+            </div>`;
         });
     </script>
 </body>
