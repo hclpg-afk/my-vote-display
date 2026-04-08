@@ -2,93 +2,84 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>THE ULTIMATE SHOW - 綜藝視覺重構版</title>
+    <title>THE ULTIMATE SHOW - 豪華綜藝版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Inter:wght@200;300;400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Inter:wght@400;800&display=swap');
         
         body { 
-            background: #020205; 
+            background: radial-gradient(circle at top, #1a0b3b 0%, #050508 100%);
             font-family: 'Noto Sans TC', sans-serif;
-            color: #ffffff; height: 100vh; overflow: hidden; margin: 0;
-            display: flex; flex-direction: column;
+            color: #ffffff; min-height: 100vh; margin: 0; padding: 2rem;
         }
 
-        /* 1. 極細冷色流光 Header */
+        /* 1. 綜藝感標題：霓虹流光 */
         .header-box {
-            position: relative; padding: 1px; border-radius: 1.5rem;
-            background: rgba(255, 255, 255, 0.05); overflow: hidden;
+            position: relative; padding: 4px; border-radius: 1.5rem;
+            background: linear-gradient(90deg, #ff0080, #7928ca, #4299e1);
+            background-size: 200% auto;
+            animation: flow 3s linear infinite;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        .header-box::before {
-            content: ''; position: absolute; width: 180%; height: 180%;
-            background: conic-gradient(from 0deg, transparent, #3b82f6, #818cf8, transparent);
-            animation: rotate-fine 12s linear infinite; top: -40%; left: -40%; z-index: 0;
-        }
-        @keyframes rotate-fine { 100% { transform: rotate(360deg); } }
+        @keyframes flow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
 
         .header-content {
-            position: relative; z-index: 1;
-            background: #080810; padding: 1.5rem 3rem; border-radius: 1.4rem;
+            background: #0d0d15; padding: 2rem; border-radius: 1.3rem;
         }
 
-        /* 2. 綜藝文字規格：放大、不粗、有層次 */
-        .poll-question { font-weight: 400; font-size: 2.5rem; letter-spacing: 0.05em; color: #f8fafc; }
-        .option-text { font-weight: 300; font-size: 2.2rem; color: #e2e8f0; } /* 顯著放大 */
-        
-        .vote-number {
-            font-family: 'Inter', sans-serif;
-            font-weight: 200; font-size: 5.5rem; /* 極大化數字效果 */
-            line-height: 1; letter-spacing: -0.05em;
-        }
-
-        /* 3. 皇冠與勳章效果 */
-        .crown-svg {
-            width: 50px; height: 50px; fill: #fbbf24;
-            filter: drop-shadow(0 0 15px rgba(251, 191, 36, 0.5));
-            animation: crown-float 2s ease-in-out infinite;
-        }
-        @keyframes crown-float {
-            0%, 100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(-8px) scale(1.1); }
-        }
-
-        /* 4. 選項卡片：解決擠壓問題 */
+        /* 2. 熱鬧選項卡片：深色玻璃與彩虹邊框 */
         .variety-card {
-            background: linear-gradient(90deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.05) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 1.5rem 2.5rem; border-radius: 1.5rem;
-            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-            display: flex; align-items: center; justify-content: space-between;
-            min-height: 120px; /* 確保選項有足夠高度 */
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem;
+            padding: 1.5rem 2rem;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative; overflow: hidden;
         }
+        
+        /* 領先者效果：熱鬧動感 */
         .variety-card.leading {
-            background: linear-gradient(90deg, rgba(59,130,246,0.1) 0%, rgba(99,102,241,0.1) 100%);
-            border-color: rgba(99, 102, 241, 0.4);
-            transform: translateX(15px); /* 領先者稍微突出 */
+            border-color: #fbbf24;
+            background: rgba(251, 191, 36, 0.1);
+            transform: scale(1.02);
+            box-shadow: 0 0 40px rgba(251, 191, 36, 0.2);
+        }
+        .variety-card.leading::after {
+            content: 'LEADING'; position: absolute; top: 0; right: 0;
+            background: #fbbf24; color: #000; font-size: 10px; font-weight: 900;
+            padding: 4px 12px; border-radius: 0 0 0 1rem;
         }
 
-        .index-badge {
-            width: 4rem; height: 4rem; border-radius: 1rem;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; font-weight: 300; border: 1px solid rgba(255,255,255,0.1);
+        .vote-number {
+            font-family: 'Inter', sans-serif; font-weight: 800; font-size: 5rem;
+            background: linear-gradient(to bottom, #fff, #94a3b8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
 
-        /* 5. 全螢幕解答層 */
+        /* 3. 按鈕：大面積漸層 */
+        .reveal-btn {
+            background: linear-gradient(90deg, #f43f5e, #8b5cf6);
+            box-shadow: 0 10px 40px rgba(244, 63, 94, 0.4);
+            transition: all 0.3s ease;
+            font-weight: 900; letter-spacing: 0.2em;
+        }
+        .reveal-btn:hover { transform: translateY(-3px); filter: brightness(1.2); }
+
+        /* 4. 解答層：全屏華麗進場 */
         .reveal-overlay {
             position: fixed; inset: 0; z-index: 9999;
-            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
-            display: flex; align-items: center; justify-content: center;
-            opacity: 0; pointer-events: none; transition: all 0.7s ease;
+            background: rgba(5, 5, 8, 0.95);
+            display: none; align-items: center; justify-content: center;
         }
-        .reveal-overlay.active { opacity: 1; pointer-events: auto; }
-        .reveal-content { transform: scale(0.95); opacity: 0; transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        .reveal-overlay.active .reveal-content { transform: scale(1); opacity: 1; }
-
+        .reveal-overlay.active { display: flex; animation: fadeIn 0.5s ease forwards; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: scale(1.1); } to { opacity: 1; transform: scale(1); } }
     </style>
 </head>
-<body class="p-8">
+<body>
 
-    <div id="root" class="h-full flex flex-col max-w-[1600px] mx-auto w-full"></div>
+    <div id="root" class="max-w-[1600px] mx-auto w-full flex flex-col gap-8"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -107,17 +98,16 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        window.ui = { showAnswer: false, chart: 'pie', currentPollId: null };
-        const syncColors = ['#60a5fa', '#34d399', '#fbbf24', '#f472b6'];
+        window.ui = { showAnswer: false, chart: 'bar', currentPollId: null };
+        const syncColors = ['#4F46E5', '#10B981', '#F59E0B', '#EC4899'];
         let rawData = null;
-        let animatedVotes = {};
 
         const render = () => {
             if (!rawData) return;
             const root = document.getElementById('root');
             const activeEntry = Object.entries(rawData).find(([id, p]) => p.isActive);
             if (!activeEntry) {
-                root.innerHTML = `<div class="h-full flex items-center justify-center opacity-10 text-4xl font-extralight tracking-[0.5em]">SYSTEM STANDBY</div>`;
+                root.innerHTML = `<div class="py-40 text-center opacity-20 text-4xl font-black italic tracking-tighter">WAITING FOR THE NEXT ROUND...</div>`;
                 return;
             }
 
@@ -125,56 +115,49 @@
             const options = Object.values(poll.options || {});
             const total = options.reduce((s, o) => s + (Number(o.voteCount) || 0), 0);
             const maxVotes = Math.max(...options.map(o => o.voteCount));
-            const isHidden = window.ui.chart === 'none';
-            const expertMsg = poll.expertAnalysis || poll.analysis || "解析中...";
+            // 修正解答抓取邏輯：優先抓取 expertAnalysis
+            const expertMsg = poll.expertAnalysis || poll.analysis || "解析資料讀取中...";
 
             root.innerHTML = `
-                <div class="w-full flex justify-between items-end mb-10">
-                    <div class="flex items-center gap-5">
-                        <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]"></div>
-                        <span class="text-sm font-light tracking-[0.4em] opacity-40 uppercase">Broadcast Channel 01</span>
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-3 bg-red-600 px-4 py-1 rounded-full animate-pulse">
+                        <div class="w-2 h-2 bg-white rounded-full"></div>
+                        <span class="text-xs font-black italic">ON AIR</span>
                     </div>
-                    <div class="flex gap-12 items-end">
-                        <div class="flex bg-white/5 p-1 rounded-xl border border-white/5">
-                            <button onclick="window.setUI('bar')" class="px-5 py-2 rounded-lg text-xs tracking-widest ${window.ui.chart==='bar'?'bg-white/10 opacity-100':'opacity-20'} transition">BAR</button>
-                            <button onclick="window.setUI('pie')" class="px-5 py-2 rounded-lg text-xs tracking-widest ${window.ui.chart==='pie'?'bg-white/10 opacity-100':'opacity-20'} transition">PIE</button>
-                            <button onclick="window.setUI('none')" class="px-5 py-2 rounded-lg text-xs tracking-widest ${window.ui.chart==='none'?'bg-red-900/40 opacity-100':'opacity-20'} transition">HIDE</button>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-[10px] opacity-30 uppercase tracking-[0.3em] mb-1">Live Votes</div>
-                            <div class="text-5xl font-extralight tabular-nums">${total}</div>
-                        </div>
+                    <div class="flex gap-4">
+                        <button onclick="window.setUI('bar')" class="px-6 py-2 rounded-full border border-white/20 text-xs font-bold ${window.ui.chart==='bar'?'bg-white text-black':''}">長條圖</button>
+                        <button onclick="window.setUI('pie')" class="px-6 py-2 rounded-full border border-white/20 text-xs font-bold ${window.ui.chart==='pie'?'bg-white text-black':''}">圓餅圖</button>
                     </div>
                 </div>
 
-                <div class="header-box mb-12">
-                    <div class="header-content">
-                        <h1 class="poll-question text-center">Q: ${poll.question}</h1>
+                <div class="header-box">
+                    <div class="header-content text-center">
+                        <h1 class="text-3xl md:text-4xl font-black leading-tight">Q: ${poll.question}</h1>
                     </div>
                 </div>
 
-                <div class="flex-1 grid grid-cols-12 gap-10 items-center mb-10 min-h-0">
-                    ${!isHidden ? `
-                    <div class="col-span-4 h-full flex items-center justify-center bg-white/[0.01] rounded-[3rem] border border-white/5 shadow-inner">
+                <div class="grid grid-cols-12 gap-8 items-start">
+                    <div class="col-span-12 lg:col-span-4 bg-white/5 rounded-[2rem] p-8 border border-white/10">
+                        <div class="text-center mb-6">
+                            <div class="text-[10px] text-white/40 tracking-[0.3em] font-bold">TOTAL AUDIENCE</div>
+                            <div class="text-6xl font-black text-white">${total}</div>
+                        </div>
                         ${window.ui.chart === 'bar' ? renderBar(options, total) : renderPie(options, total)}
                     </div>
-                    ` : ''}
 
-                    <div class="${isHidden ? 'col-span-10 col-start-2' : 'col-span-8'} flex flex-col justify-center gap-6">
+                    <div class="col-span-12 lg:col-span-8 flex flex-col gap-5">
                         ${options.map((o, i) => {
                             const isLeader = o.voteCount === maxVotes && maxVotes > 0;
                             return `
                             <div class="variety-card ${isLeader ? 'leading' : ''}">
-                                <div class="flex items-center gap-10">
-                                    <div class="index-badge" style="background: ${syncColors[i%4]}11; color: ${syncColors[i%4]}; border-color: ${syncColors[i%4]}33;">${String.fromCharCode(65+i)}</div>
-                                    <div class="option-text">${o.text || o.label}</div>
-                                </div>
-                                <div class="flex items-center gap-12">
-                                    <div class="vote-number" style="color: ${isLeader ? '#fff' : 'rgba(255,255,255,0.6)'}">${animatedVotes[pollId + i] || o.voteCount}</div>
-                                    <div class="w-16 flex justify-center">
-                                        ${isLeader ? `
-                                            <svg class="crown-svg" viewBox="0 0 24 24"><path d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5M19 19C19 19.6 18.6 20 18 20H6C5.4 20 5 19.6 5 19V18H19V19Z" /></svg>
-                                        ` : ''}
+                                <div class="flex items-center justify-between gap-6">
+                                    <div class="flex items-center gap-6 flex-1">
+                                        <div class="w-16 h-16 flex-shrink-0 rounded-2xl bg-white/10 flex items-center justify-center text-3xl font-black" style="color: ${syncColors[i%4]}">${String.fromCharCode(65+i)}</div>
+                                        <div class="text-2xl font-bold leading-snug">${o.text || o.label}</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="vote-number">${o.voteCount}</div>
+                                        <div class="text-[10px] font-black opacity-40">VOTES</div>
                                     </div>
                                 </div>
                             </div>
@@ -182,17 +165,17 @@
                     </div>
                 </div>
 
-                <button onclick="window.triggerReveal()" class="w-full py-6 rounded-3xl border border-white/5 bg-white/[0.03] hover:bg-white/[0.08] text-white/40 text-sm font-light tracking-[0.8em] transition-all hover:tracking-[1em] active:scale-[0.99]">
-                    REVEAL ANALYSIS
+                <button onclick="window.triggerReveal()" class="reveal-btn w-full py-8 rounded-3xl text-2xl mb-20">
+                    🔥 揭 曉 專 家 分 析 🔥
                 </button>
 
                 <div id="reveal-layer" class="reveal-overlay">
-                    <div class="max-w-6xl w-full text-center reveal-content p-20">
-                        <div class="text-xs tracking-[1em] opacity-30 mb-16 uppercase">Expert Panel Insight</div>
-                        <h2 class="text-5xl font-light leading-relaxed text-white/95 italic">「 ${expertMsg} 」</h2>
-                        <div class="mt-24 flex justify-center gap-10">
-                            <button onclick="window.speak('${expertMsg.replace(/'/g, "\\'")}')" class="px-16 py-5 rounded-full border border-white/10 hover:bg-white/5 transition text-xs tracking-widest font-light">AUDIO SYSTEM</button>
-                            <button onclick="window.toggleAnswer(false)" class="px-16 py-5 rounded-full bg-white text-black text-xs tracking-widest font-bold shadow-2xl">RETURN TO SHOW</button>
+                    <div class="max-w-4xl w-full text-center px-10">
+                        <div class="text-yellow-400 text-sm font-black tracking-[0.5em] mb-10 uppercase">Expert Panel Analysis</div>
+                        <h2 class="text-5xl font-black leading-relaxed mb-20">「 ${expertMsg} 」</h2>
+                        <div class="flex flex-col md:flex-row justify-center gap-6">
+                            <button onclick="window.speak('${expertMsg.replace(/'/g, "\\'")}')" class="px-12 py-5 rounded-full border-2 border-white/20 hover:bg-white/10 font-bold">播放語音系統</button>
+                            <button onclick="window.toggleAnswer(false)" class="px-12 py-5 rounded-full bg-white text-black font-black text-xl shadow-2xl">關閉視窗</button>
                         </div>
                     </div>
                 </div>
@@ -201,13 +184,15 @@
         };
 
         const renderBar = (opts, total) => `
-            <div class="flex items-end justify-around w-full h-[350px] gap-8 px-16">
+            <div class="flex items-end justify-between h-[300px] gap-4 px-4">
                 ${opts.map((o, i) => {
-                    const h = total > 0 ? (Number(o.voteCount) / total * 100) : 2;
+                    const h = total > 0 ? (Number(o.voteCount) / total * 100) : 5;
                     return `
-                        <div class="flex-1 flex flex-col items-center h-full justify-end">
-                            <div class="w-full rounded-t-lg transition-all duration-1000 shadow-[0_0_30px_rgba(0,0,0,0.5)]" style="height: ${h}%; background: linear-gradient(180deg, ${syncColors[i%4]}cc, ${syncColors[i%4]}22);"></div>
-                            <div class="mt-6 text-[10px] opacity-20 font-bold tracking-widest uppercase">${String.fromCharCode(65+i)}</div>
+                        <div class="flex-1 flex flex-col items-center group">
+                            <div class="w-full rounded-t-xl transition-all duration-1000 relative shadow-lg" style="height: ${h}%; background: ${syncColors[i%4]}">
+                                <div class="absolute -top-10 left-1/2 -translate-x-1/2 text-xl font-black">${o.voteCount}</div>
+                            </div>
+                            <div class="mt-4 text-xs font-black opacity-30">${String.fromCharCode(65+i)}</div>
                         </div>
                     `;
                 }).join('')}
@@ -222,9 +207,9 @@
                 const x1 = Math.cos(2 * Math.PI * curr), y1 = Math.sin(2 * Math.PI * curr);
                 curr += p;
                 const x2 = Math.cos(2 * Math.PI * curr), y2 = Math.sin(2 * Math.PI * curr);
-                return `<path d="M 0 0 L ${x1} ${y1} A 1 1 0 ${p > 0.5 ? 1 : 0} 1 ${x2} ${y2} Z" fill="${syncColors[i%4]}" opacity="0.8"></path>`;
+                return `<path d="M 0 0 L ${x1} ${y1} A 1 1 0 ${p > 0.5 ? 1 : 0} 1 ${x2} ${y2} Z" fill="${syncColors[i%4]}"></path>`;
             }).join('');
-            return `<div class="relative w-[350px] h-[350px] drop-shadow-[0_0_40px_rgba(0,0,0,0.4)]"><svg viewBox="-1 -1 2 2" class="transform -rotate-90 w-full h-full">${paths}</svg></div>`;
+            return `<div class="relative w-full aspect-square max-w-[300px] mx-auto"><svg viewBox="-1 -1 2 2" class="transform -rotate-90 w-full h-full">${paths}</svg></div>`;
         };
 
         window.setUI = (c) => { window.ui.chart = c; render(); };
@@ -232,24 +217,20 @@
         window.triggerReveal = () => { window.toggleAnswer(true); };
         window.speak = (msg) => {
             window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(msg); u.lang = 'zh-TW'; u.rate = 1;
+            const u = new SpeechSynthesisUtterance(msg); u.lang = 'zh-TW'; u.rate = 1.1;
             window.speechSynthesis.speak(u);
         };
 
         onValue(ref(db, 'polls'), (snap) => {
             const data = snap.val();
             if (!data) return;
+            rawData = data;
             const activeEntry = Object.entries(data).find(([id, p]) => p.isActive);
             if (activeEntry && activeEntry[0] !== window.ui.currentPollId) {
-                window.ui.showAnswer = false; window.ui.currentPollId = activeEntry[0];
-                animatedVotes = {};
+                window.ui.showAnswer = false;
+                window.ui.currentPollId = activeEntry[0];
             }
-            if (activeEntry) {
-                Object.values(activeEntry[1].options || {}).forEach((o, i) => {
-                    animatedVotes[activeEntry[0] + i] = Number(o.voteCount);
-                });
-            }
-            rawData = data; render();
+            render();
         });
     </script>
 </body>
