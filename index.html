@@ -2,23 +2,44 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>即時投票系統 - 專業展示版</title>
+    <title>綜藝展示端 - 最終救援版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
         body { 
-            background: radial-gradient(circle at center, #2d1b69 0%, #050514 100%);
+            background: radial-gradient(circle at center, #3c2a7a 0%, #0c0a2a 100%);
             font-family: 'Noto Sans TC', sans-serif;
             overflow: hidden;
         }
-        .glass-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); border-radius: 2rem; border: 1px solid rgba(255, 255, 255, 0.1); }
-        .answer-box { background: rgba(255, 255, 255, 0.03); border: 2px solid #fbbf24; border-radius: 2.5rem; }
-        .btn-orange { background: linear-gradient(90deg, #f59e0b, #ea580c); box-shadow: 0 4px 15px rgba(234, 88, 12, 0.3); }
-        .bar-green { background: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.3); min-height: 4px; transition: height 1s ease-out; }
+        /* 綜藝感霓虹卡片 */
+        .neon-card { 
+            background: rgba(255, 255, 255, 0.03); 
+            backdrop-filter: blur(20px); 
+            border: 2px solid rgba(255, 255, 255, 0.08); 
+            border-radius: 2.5rem;
+            transition: all 0.5s ease;
+        }
+        /* 圓餅圖呼吸燈 Class */
+        .chart-glow { box-shadow: 0 0 40px rgba(74, 222, 128, 0.3); }
+        
+        /* 動態長條圖高度動畫 */
+        .bar-anim { transition: height 1s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+        /* 解答區展開動畫 Class */
+        .answer-reveal {
+            animation: slideDown 0.7s forwards;
+            border-color: #facc15;
+            box-shadow: 0 0 30px rgba(250, 204, 21, 0.3);
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); height: 0; }
+            to { opacity: 1; transform: translateY(0); height: auto; }
+        }
+        .btn-active { background: #3b82f6; color: white; border-color: transparent; }
     </style>
 </head>
-<body class="text-white min-h-screen p-8">
-    <div id="root" class="max-w-[1400px] mx-auto"></div>
+<body class="text-white min-h-screen p-12">
+    <div id="root" class="max-w-[1550px] mx-auto"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -34,103 +55,137 @@
             appId: "1:680113677727:web:8dc23a48f35b0bcb0b09aa"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+        initializeApp(firebaseConfig);
+        const db = getDatabase();
 
-        let showChart = true;
-        let showAnswer = false;
+        // UI 狀態 (製作人控制項)
+        window.uiState = { currentChart: 'bar', answerVisible: false };
+        let lastRawData = null;
 
-        onValue(ref(db, 'polls'), (snapshot) => {
-            const data = snapshot.val();
-            if (!data) return;
-
-            // 1. 抓取當前題目
-            const target = Object.values(data).find(p => p.isActive) || Object.values(data)[0];
+        const renderView = () => {
+            if (!lastRawData) return;
+            const target = Object.values(lastRawData).find(p => p.isActive) || Object.values(lastRawData)[0];
+            const options = Object.values(target.options || {});
+            const totalVotes = options.reduce((s, o) => s + (Number(o.voteCount) || 0), 0);
             
-            // 2. 處理選項數據 (增加容錯，確保圖表出得來)
-            const rawOptions = target.options || {};
-            const options = Array.isArray(rawOptions) ? rawOptions : Object.values(rawOptions);
-            const totalVotes = options.reduce((sum, opt) => sum + (Number(opt.voteCount) || 0), 0);
-            
-            // 3. 多路徑抓取「專家解答」
-            const expertMsg = target.expertAnalysis || target.analysis || target.answer || "後台尚未輸入解析文字";
+            // 抓取專家解答資料 (增加容錯路徑)
+            const expertMsg = target.expertAnalysis || target.analysis || "解析文字尚未輸入。";
 
-            const root = document.getElementById('root');
-            root.innerHTML = `
-                <div class="flex items-center gap-3 mb-6 opacity-40">
-                    <span class="bg-red-500 px-3 py-0.5 rounded-full text-[10px] font-bold">● LIVE</span>
-                    <span class="text-xs">已投 ${totalVotes} 票</span>
-                    <button onclick="window.toggleChart()" class="ml-auto text-[10px] border border-white/20 px-2 py-1 rounded hover:bg-white/10">
-                        ${showChart ? '隱藏圖表' : '顯示圖表'}
-                    </button>
+            const rootElement = document.getElementById('root');
+            const state = window.uiState;
+
+            // 圓餅圖 SVG (甜甜圈樣式)
+            const totalSlices = options.length;
+            const radius = 1;
+            let cumulativePercent = 0;
+            const pieSlices = options.map((opt, i) => {
+                const percent = totalVotes > 0 ? (Number(opt.voteCount) / totalVotes) : 0;
+                const startX = Math.cos(2 * Math.PI * cumulativePercent);
+                const startY = Math.sin(2 * Math.PI * cumulativePercent);
+                cumulativePercent += percent;
+                const endX = Math.cos(2 * Math.PI * cumulativePercent);
+                const endY = Math.sin(2 * Math.PI * cumulativePercent);
+                const largeArc = percent > 0.5 ? 1 : 0;
+                return `<path d="M 0 0 L ${startX} ${startY} A 1 1 0 ${largeArc} 1 ${endX} ${endY} Z" fill="${['#10b981','#3b82f6','#fb923c','#f472b6'][i % 4]}"></path>`;
+            }).join('');
+
+            rootElement.innerHTML = `
+                <div class="flex justify-between items-center mb-10">
+                    <div class="flex items-center gap-3">
+                        <span class="bg-red-600 px-4 py-1.5 rounded-full text-xs font-black animate-pulse shadow-[0_0_20px_rgba(220,38,38,0.5)]">● LIVE REPORT</span>
+                        <div class="h-[2px] w-20 bg-white/10 ml-3"></div>
+                        <span class="text-sm font-bold opacity-50 ml-2">已投 ${totalVotes} 票</span>
+                    </div>
+                    
+                    <div class="flex gap-2 p-2 neon-card !rounded-2xl border-white/5">
+                        <button onclick="window.setChart('bar')" class="px-5 py-2.5 rounded-xl text-sm font-bold ${state.currentChart==='bar'?'btn-active':'opacity-50 hover:opacity-100'}">長條圖</button>
+                        <button onclick="window.setChart('pie')" class="px-5 py-2.5 rounded-xl text-sm font-bold ${state.currentChart==='pie'?'btn-active':'opacity-50 hover:opacity-100'}">圓餅圖</button>
+                        <button onclick="window.setChart('none')" class="px-5 py-2.5 rounded-xl text-sm font-bold ${state.currentChart==='none'?'btn-active':'opacity-50 hover:opacity-100'}">隱藏圖表</button>
+                    </div>
                 </div>
 
-                <h1 class="text-4xl font-bold mb-10 leading-snug tracking-tight">
-                    🧠 ${target.question}
-                </h1>
-
-                <div class="grid grid-cols-12 gap-8 items-start">
-                    <div class="col-span-12 lg:col-span-5 ${showChart ? '' : 'hidden'}">
-                        <div class="glass-card h-[400px] flex items-end justify-around p-8 pt-16">
-                            ${options.map((opt, i) => {
-                                const val = Number(opt.voteCount) || 0;
-                                const height = totalVotes > 0 ? (val / totalVotes * 100) : 0;
-                                return `
-                                    <div class="flex flex-col items-center gap-3 w-full h-full justify-end">
-                                        <span class="text-lg font-bold">${val}</span>
-                                        <div class="bar-green w-12 rounded-t-lg" style="height: ${height}%"></div>
-                                        <span class="opacity-30 text-xs font-bold">${String.fromCharCode(65+i)}</span>
-                                    </div>
-                                `;
-                            }).join('')}
+                <div class="grid grid-cols-12 gap-10 items-start">
+                    <div class="col-span-12 lg:col-span-5 ${state.currentChart === 'none' ? 'hidden' : ''}">
+                        <div class="neon-card p-12 h-[500px] flex items-center justify-center pt-20">
+                            ${state.currentChart === 'bar' ? `
+                                <div class="flex items-end justify-around w-full h-full">
+                                    ${options.map((opt, i) => {
+                                        const h = totalVotes > 0 ? (Number(opt.voteCount) / totalVotes * 90) : 5;
+                                        return `
+                                            <div class="flex flex-col items-center gap-5 w-full h-full justify-end">
+                                                <span class="text-xl font-black">${opt.voteCount}</span>
+                                                <div class="bar-anim w-16 bg-emerald-500 rounded-t-2xl shadow-lg shadow-emerald-500/20" style="height: ${h}%"></div>
+                                                <span class="opacity-30 text-sm font-bold">${String.fromCharCode(65+i)}</span>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            ` : `
+                                <svg viewBox="-1.1 -1.1 2.2 2.2" class="h-full w-full -rotate-90 chart-glow">
+                                    ${pieSlices}
+                                    <circle r="0.6" fill="#0c0a2a" /> </svg>
+                                <div class="absolute flex flex-col items-center">
+                                    <span class="text-sm opacity-40">總票數</span>
+                                    <span class="text-6xl font-black">${totalVotes}</span>
+                                </div>
+                            `}
                         </div>
                     </div>
 
-                    <div class="${showChart ? 'lg:col-span-7' : 'lg:col-span-12'} col-span-12 space-y-4">
+                    <div class="${state.currentChart === 'none' ? 'lg:col-span-12 max-w-4xl mx-auto w-full' : 'lg:col-span-7'} space-y-8">
+                        <h1 class="text-5xl font-black mb-16 leading-tight max-w-4xl">${target.question}</h1>
+                        
                         ${options.map((opt, i) => {
-                            const val = Number(opt.voteCount) || 0;
-                            const per = totalVotes > 0 ? Math.round(val/totalVotes*100) : 0;
+                            const per = totalVotes > 0 ? Math.round(Number(opt.voteCount)/totalVotes*100) : 0;
+                            const colors = ['border-green-500 text-green-400','border-blue-500 text-blue-400','border-orange-500 text-orange-400'];
                             return `
-                                <div class="glass-card p-5 flex justify-between items-center px-8 border-l-2 border-blue-500/30">
-                                    <div class="flex items-center gap-5">
-                                        <div class="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-300 font-bold text-xs">${String.fromCharCode(65+i)}</div>
-                                        <span class="text-lg font-medium">${opt.text || opt.label}</span>
+                                <div class="neon-card p-6 flex justify-between items-center px-10 border-l-4 ${colors[i%3].split(' ')[0]}">
+                                    <div class="flex items-center gap-6">
+                                        <div class="w-12 h-12 rounded-full flex items-center justify-center font-bold ${colors[i%3]} bg-white/5 border border-current/20">${String.fromCharCode(65+i)}</div>
+                                        <span class="text-2xl font-bold">${opt.text || opt.label}</span>
                                     </div>
                                     <div class="text-right">
-                                        <span class="text-2xl font-bold">${val}</span>
-                                        <span class="text-[10px] opacity-20 block">${per}%</span>
+                                        <div class="text-4xl font-black">${opt.voteCount} <span class="text-base opacity-40 font-normal">票</span></div>
+                                        <div class="text-[10px] opacity-30 font-mono tracking-tighter">${per}%</div>
                                     </div>
                                 </div>
                             `;
                         }).join('')}
 
-                        <button onclick="window.toggleAnswer()" class="w-full btn-orange py-4 rounded-2xl text-lg font-bold flex items-center justify-center gap-2 mt-4">
-                            💡 公佈答案
-                        </button>
+                        <div class="pt-6 relative">
+                            <button onclick="window.revealAnswer()" class="w-full bg-gradient-to-r from-yellow-500 to-orange-600 shadow-[0_5px_30px_rgba(249,115,22,0.4)] py-6 rounded-2xl text-2xl font-black flex items-center justify-center gap-3 transition-transform active:scale-95">
+                                💡 公佈答案
+                            </button>
+                        </div>
 
-                        <div class="${showAnswer ? 'block' : 'hidden'} mt-6">
-                            <div class="answer-box p-8">
-                                <div class="flex items-center justify-between mb-6">
-                                    <div class="flex items-center gap-3">
-                                        <span class="text-2xl text-yellow-400">💡</span>
-                                        <h2 class="text-xl font-bold text-yellow-400 font-bold">專家解答</h2>
-                                    </div>
-                                    <div class="flex items-center gap-2 opacity-50 scale-75">
-                                        <span class="text-[10px]">慢 正常 快 很快</span>
-                                        <button class="bg-yellow-400 text-black px-3 py-1 rounded font-bold text-[10px]">🔊 朗讀</button>
-                                    </div>
+                        <div class="answer-reveal ${state.answerVisible ? 'answer-reveal' : 'hidden'} neon-card p-10 bg-yellow-400/5 mt-8 border-2 border-dashed">
+                            <div class="flex items-center justify-between mb-8">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-12 h-12 rounded-full bg-yellow-400 text-black flex items-center justify-center text-xl">💡</div>
+                                    <h2 class="text-3xl font-black text-yellow-400 uppercase tracking-widest">Expert Analysis</h2>
                                 </div>
-                                <p class="text-lg leading-relaxed text-yellow-50/80">${expertMsg}</p>
-                                <button onclick="window.toggleAnswer()" class="mt-6 opacity-20 text-[10px] underline">隱藏解答</button>
+                                <div class="flex items-center gap-2">
+                                    <div class="bg-white/5 px-3 py-1 rounded-full text-[10px] opacity-40">慢 正常 快 很快</div>
+                                    <button class="bg-yellow-400 text-black px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">🔊 朗讀</button>
+                                </div>
                             </div>
+                            <p class="text-2xl leading-relaxed text-yellow-50/90 font-medium">${expertMsg}</p>
+                            <button onclick="window.revealAnswer()" class="mt-8 opacity-20 text-[10px] underline hover:opacity-100">隱藏解答</button>
                         </div>
                     </div>
                 </div>
             `;
-        });
+        };
 
-        window.toggleChart = () => { showChart = !showChart; }; 
-        window.toggleAnswer = () => { showAnswer = !showAnswer; };
+        // 按鈕事件全域函數
+        window.setChart = (chartType) => { window.uiState.currentChart = chartType; renderView(); };
+        window.revealAnswer = () => { window.uiState.answerVisible = !window.uiState.answerVisible; renderView(); };
+
+        // 數據同步
+        onValue(ref(db, 'polls'), (snapshot) => {
+            lastRawData = snapshot.val();
+            renderView();
+        });
     </script>
 </body>
 </html>
