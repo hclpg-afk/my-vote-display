@@ -2,73 +2,60 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>THE ULTIMATE SHOW - 亮感舞台版</title>
+    <title>THE ULTIMATE SHOW - 終極對齊版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&family=Inter:wght@900&display=swap');
         
         body { 
-            /* 提亮背景：加入強烈的頂部光暈 */
-            background: 
-                radial-gradient(circle at 50% -20%, #6366f1 0%, transparent 50%),
-                radial-gradient(circle at 0% 100%, #2d1b69 0%, #050508 100%);
+            background: radial-gradient(circle at 50% -20%, #6366f1 0%, transparent 60%), #050508;
             font-family: 'Noto Sans TC', sans-serif;
-            color: #ffffff; 
-            height: 100vh;
-            margin: 0; padding: 1rem 2rem;
-            display: flex; flex-direction: column;
-            overflow: hidden; /* 強制不捲動 */
+            color: #ffffff; height: 100vh; margin: 0; padding: 1rem 2rem;
+            display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* 霓虹發光標題 */
-        .header-box {
+        /* 1. 題幹區塊放大兩倍感 */
+        .question-box {
             background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(15px);
             border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 1.5rem;
-            box-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
+            border-radius: 2rem;
+            min-height: 22vh; /* 強制增加高度 */
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 40px rgba(99, 102, 241, 0.2);
         }
 
-        /* 控制面板：讓按鈕變明顯 */
+        /* 2. 控制列 */
         .control-bar button {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            font-weight: 800;
+            transition: all 0.2s ease; border: 1px solid rgba(255, 255, 255, 0.2); font-weight: 800;
         }
         .control-bar button.active {
-            background: #ffffff; color: #000000;
-            box-shadow: 0 0 20px #ffffff;
-            transform: translateY(-2px);
+            background: #ffffff; color: #000; box-shadow: 0 0 20px #ffffff;
         }
 
-        /* 選項卡片：改為半透明亮色 */
-        .variety-card {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        /* 3. 選項卡片優化：縮減上下空白 */
+        .option-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 1.2rem;
-            transition: all 0.4s ease;
+            padding: 0.8rem 2rem; /* 顯著縮小上下內距 */
+            height: 100%; /* 讓它在 flex 容器中平分 */
+            display: flex; align-items: center;
         }
-        .variety-card.leading {
-            background: rgba(255, 255, 255, 0.2);
+        .option-card.leading {
+            background: rgba(255, 255, 255, 0.15);
             border-color: #fbbf24;
             box-shadow: 0 0 25px rgba(251, 191, 36, 0.3);
         }
 
-        /* 底部按鈕 */
-        .reveal-btn {
-            background: linear-gradient(90deg, #ff0080, #7928ca);
-            box-shadow: 0 0 40px rgba(255, 0, 128, 0.3);
-            font-weight: 900;
-        }
-
-        /* 全螢幕解答層 */
+        /* 4. 底層解答彈窗 */
         .reveal-overlay {
             position: fixed; inset: 0; z-index: 9999;
             background: rgba(10, 10, 20, 0.98);
             display: none; align-items: center; justify-content: center;
         }
-        .reveal-overlay.active { display: flex; animation: zoomIn 0.3s ease forwards; }
-        @keyframes zoomIn { from { opacity: 0; scale: 0.9; } to { opacity: 1; scale: 1; } }
+        .reveal-overlay.active { display: flex; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -93,15 +80,25 @@
         const db = getDatabase(app);
 
         window.ui = { showAnswer: false, chart: 'bar', currentPollId: null };
-        const syncColors = ['#818cf8', '#34d399', '#fbbf24', '#f472b6']; // 更有活力的亮色系
+        const syncColors = ['#818cf8', '#34d399', '#fbbf24', '#f472b6'];
         let rawData = null;
+
+        // 強化解答抓取邏輯：地毯式搜尋常見欄位
+        const findAnalysis = (poll) => {
+            if (!poll) return "分析載入中...";
+            const keys = ['expertAnalysis', 'analysis', 'expert', 'expertMsg', 'description', 'desc', 'result'];
+            for (let key of keys) {
+                if (poll[key] && typeof poll[key] === 'string') return poll[key];
+            }
+            return "數據分析完成，請導播揭曉內容。";
+        };
 
         const render = () => {
             if (!rawData) return;
             const root = document.getElementById('root');
             const activeEntry = Object.entries(rawData).find(([id, p]) => p.isActive);
             if (!activeEntry) {
-                root.innerHTML = `<div class="h-full flex items-center justify-center opacity-30 text-2xl italic">WAITING FOR DATA...</div>`;
+                root.innerHTML = `<div class="h-full flex items-center justify-center opacity-30 text-2xl">WAITING FOR SESSION...</div>`;
                 return;
             }
 
@@ -109,63 +106,64 @@
             const options = Object.values(poll.options || {});
             const total = options.reduce((s, o) => s + (Number(o.voteCount) || 0), 0);
             const maxVotes = Math.max(...options.map(o => o.voteCount));
-            const expertMsg = poll.expertAnalysis || poll.analysis || poll.expert || "解答數據載入中...";
+            const expertMsg = findAnalysis(poll);
             const chartMode = window.ui.chart;
 
             root.innerHTML = `
-                <div class="flex justify-between items-center h-12">
-                    <div class="bg-red-500 px-4 py-1 rounded-full text-xs font-black italic animate-pulse">LIVE BROADCAST</div>
-                    
-                    <div class="control-bar flex bg-white/10 p-1 rounded-xl border border-white/10">
-                        <button onclick="window.setUI('bar')" class="px-4 py-1.5 rounded-lg text-[10px] ${chartMode==='bar'?'active':''}">BAR CHART</button>
-                        <button onclick="window.setUI('pie')" class="px-4 py-1.5 rounded-lg text-[10px] ${chartMode==='pie'?'active':''}">PIE CHART</button>
-                        <button onclick="window.setUI('none')" class="px-4 py-1.5 rounded-lg text-[10px] ${chartMode==='none'?'active':''}">HIDE CHART</button>
+                <div class="flex justify-between items-center shrink-0">
+                    <div class="bg-red-500 px-4 py-1 rounded-full text-xs font-black italic">LIVE BROADCAST</div>
+                    <div class="control-bar flex bg-white/10 p-1 rounded-xl">
+                        <button onclick="window.setUI('bar')" class="px-4 py-1.5 rounded-lg text-[10px] ${chartMode==='bar'?'active':''}">BAR</button>
+                        <button onclick="window.setUI('pie')" class="px-4 py-1.5 rounded-lg text-[10px] ${chartMode==='pie'?'active':''}">PIE</button>
+                        <button onclick="window.setUI('none')" class="px-4 py-1.5 rounded-lg text-[10px] ${chartMode==='none'?'active':''}">HIDE</button>
                     </div>
-
-                    <div class="text-right">
-                        <span class="text-[10px] opacity-50 font-bold uppercase mr-2">Total Votes:</span>
+                    <div class="text-right flex items-center gap-3">
+                        <span class="text-[10px] opacity-50 font-bold uppercase">Votes</span>
                         <span class="text-3xl font-black tabular-nums">${total}</span>
                     </div>
                 </div>
 
-                <div class="header-box p-6 flex items-center justify-center">
-                    <h1 class="text-2xl md:text-3xl font-black text-center text-white/95">Q: ${poll.question}</h1>
+                <div class="question-box p-10 shrink-0">
+                    <h1 class="text-3xl md:text-4xl font-black text-center leading-tight text-white/95">Q: ${poll.question}</h1>
                 </div>
 
                 <div class="flex-1 min-h-0 flex gap-6 overflow-hidden">
                     
                     ${chartMode !== 'none' ? `
-                    <div class="flex-[0.8] flex items-center justify-center bg-white/5 rounded-3xl border border-white/5 p-8">
+                    <div class="flex-1 flex items-center justify-center bg-white/5 rounded-[2rem] border border-white/5 p-6 min-h-0">
                         ${chartMode === 'bar' ? renderBar(options, total) : renderPie(options, total)}
                     </div>
                     ` : ''}
 
-                    <div class="flex-1 flex flex-col justify-center gap-4">
+                    <div class="${chartMode !== 'none' ? 'w-1/2' : 'w-full'} flex flex-col gap-4 min-h-0">
                         ${options.map((o, i) => {
                             const isLeader = o.voteCount === maxVotes && maxVotes > 0;
                             return `
-                            <div class="variety-card flex-1 flex items-center px-8 py-2 ${isLeader ? 'leading' : ''}">
-                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-3xl font-black mr-6" style="background: ${syncColors[i%4]}22; color: ${syncColors[i%4]}">
-                                    ${String.fromCharCode(65+i)}
+                            <div class="flex-1 min-h-0">
+                                <div class="option-card ${isLeader ? 'leading' : ''}">
+                                    <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-4xl font-black mr-6 shrink-0" 
+                                         style="background: ${syncColors[i%4]}22; color: ${syncColors[i%4]}">
+                                        ${String.fromCharCode(65+i)}
+                                    </div>
+                                    <div class="flex-1 text-2xl font-bold leading-tight">${o.text || o.label}</div>
+                                    ${isLeader ? '<div class="text-4xl ml-4">👑</div>' : ''}
                                 </div>
-                                <div class="flex-1 text-2xl font-bold text-white/90">${o.text || o.label}</div>
-                                ${isLeader ? '<div class="text-4xl">👑</div>' : ''}
                             </div>
                         `}).join('')}
                     </div>
                 </div>
 
-                <button onclick="window.triggerReveal()" class="reveal-btn w-full h-16 rounded-2xl text-xl shrink-0">
+                <button onclick="window.triggerReveal()" class="bg-gradient-to-r from-pink-500 to-violet-600 w-full h-16 rounded-2xl text-xl font-black shrink-0 shadow-lg">
                     REVEAL EXPERT ANALYSIS
                 </button>
 
                 <div id="reveal-layer" class="reveal-overlay">
                     <div class="max-w-4xl w-full text-center px-12">
-                        <div class="text-indigo-400 text-xs font-black tracking-[1em] mb-10 uppercase">Expert Analysis</div>
-                        <h2 class="text-4xl md:text-5xl font-black leading-relaxed mb-16">「 ${expertMsg} 」</h2>
+                        <div class="text-indigo-400 text-xs font-black tracking-[1em] mb-10 uppercase">Analysis Data</div>
+                        <h2 class="text-4xl font-black leading-relaxed mb-16 italic">「 ${expertMsg} 」</h2>
                         <div class="flex justify-center gap-6">
-                            <button onclick="window.speak('${expertMsg.replace(/'/g, "\\'")}')" class="px-10 py-4 rounded-full border border-white/20 hover:bg-white/10 font-bold transition">播放系統語音</button>
-                            <button onclick="window.toggleAnswer(false)" class="px-12 py-4 rounded-full bg-white text-black font-black text-lg">關閉分析</button>
+                            <button onclick="window.speak('${expertMsg.replace(/'/g, "\\'")}')" class="px-10 py-4 rounded-full border border-white/20 hover:bg-white/10 font-bold">播放語音</button>
+                            <button onclick="window.toggleAnswer(false)" class="px-12 py-4 rounded-full bg-white text-black font-black">返回</button>
                         </div>
                     </div>
                 </div>
@@ -174,16 +172,15 @@
         };
 
         const renderBar = (opts, total) => `
-            <div class="flex items-end justify-around w-full h-[70%] gap-6">
+            <div class="flex items-end justify-around w-full h-[85%] gap-6 px-4">
                 ${opts.map((o, i) => {
                     const h = total > 0 ? (Number(o.voteCount) / total * 100) : 5;
                     return `
                         <div class="flex-1 flex flex-col items-center h-full justify-end">
-                            <div class="w-full rounded-t-xl transition-all duration-1000" 
-                                 style="height: ${h}%; background: ${syncColors[i%4]}; box-shadow: 0 0 40px ${syncColors[i%4]}55;">
-                                <div class="w-full h-full bg-gradient-to-t from-black/20 to-transparent"></div>
+                            <div class="w-full rounded-t-xl transition-all duration-1000 relative" 
+                                 style="height: ${h}%; background: ${syncColors[i%4]}; box-shadow: 0 0 40px ${syncColors[i%4]}44;">
                             </div>
-                            <div class="mt-4 text-sm font-black" style="color:${syncColors[i%4]}">${String.fromCharCode(65+i)}</div>
+                            <div class="mt-4 text-xl font-black" style="color:${syncColors[i%4]}">${String.fromCharCode(65+i)}</div>
                         </div>
                     `;
                 }).join('')}
@@ -200,7 +197,7 @@
                 const x2 = Math.cos(2 * Math.PI * curr), y2 = Math.sin(2 * Math.PI * curr);
                 return `<path d="M 0 0 L ${x1} ${y1} A 1 1 0 ${p > 0.5 ? 1 : 0} 1 ${x2} ${y2} Z" fill="${syncColors[i%4]}"></path>`;
             }).join('');
-            return `<div class="relative w-full h-full flex items-center justify-center p-8"><svg viewBox="-1 -1 2 2" class="transform -rotate-90 w-full h-full drop-shadow-2xl scale-110">${paths}</svg></div>`;
+            return `<div class="relative w-full h-full flex items-center justify-center p-4"><svg viewBox="-1 -1 2 2" class="transform -rotate-90 w-full h-full drop-shadow-2xl scale-125">${paths}</svg></div>`;
         };
 
         window.setUI = (c) => { window.ui.chart = c; render(); };
@@ -208,7 +205,7 @@
         window.triggerReveal = () => { window.toggleAnswer(true); };
         window.speak = (msg) => {
             window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(msg); u.lang = 'zh-TW'; u.rate = 1.1;
+            const u = new SpeechSynthesisUtterance(msg); u.lang = 'zh-TW'; u.rate = 1;
             window.speechSynthesis.speak(u);
         };
 
