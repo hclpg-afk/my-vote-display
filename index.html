@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>THE ULTIMATE SHOW - 旗艦流光對齊版</title>
+    <title>THE ULTIMATE SHOW - 題目細流光版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
@@ -14,21 +14,49 @@
             display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* 題幹區塊：放大感 */
+        /* 題目框：加入細細的流光動畫 */
         .question-box {
+            position: relative;
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 2rem;
             min-height: 22vh;
             display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 40px rgba(99, 102, 241, 0.1);
+            overflow: hidden; /* 確保流光不會超出圓角 */
         }
 
-        /* 選項卡片：對齊與縮減空白 */
+        /* 細流光遮罩層 */
+        .question-box::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -150%;
+            width: 100%;
+            height: 100%;
+            /* 這裡控制流光的寬度與亮度：10% 的純白光束 */
+            background: linear-gradient(
+                90deg, 
+                transparent 0%, 
+                rgba(255, 255, 255, 0) 40%, 
+                rgba(255, 255, 255, 0.2) 50%, 
+                rgba(255, 255, 255, 0) 60%, 
+                transparent 100%
+            );
+            transform: skewX(-20deg);
+            animation: fineScan 6s infinite ease-in-out;
+        }
+
+        @keyframes fineScan {
+            0% { left: -150%; }
+            30% { left: 150%; } /* 30% 就跑完，後面留空檔增加高級感 */
+            100% { left: 150%; }
+        }
+
+        /* 選項與按鈕樣式保持原有的旗艦感 */
         .option-card {
             background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 1.2rem;
             padding: 0.5rem 2rem;
             height: 100%;
@@ -38,11 +66,9 @@
         .option-card.leading {
             background: rgba(255, 255, 255, 0.1);
             border-color: #fbbf24;
-            box-shadow: 0 0 25px rgba(251, 191, 36, 0.2);
-            transform: scale(1.02);
+            box-shadow: 0 0 25px rgba(251, 191, 36, 0.15);
         }
 
-        /* 強化流光按鈕 */
         .shimmer-btn {
             position: relative; overflow: hidden;
             background: linear-gradient(90deg, #4f46e5, #9333ea, #db2777, #4f46e5);
@@ -50,14 +76,7 @@
             animation: shimmerMove 3s linear infinite;
         }
         @keyframes shimmerMove { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
-        .shimmer-btn::after {
-            content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-            background: linear-gradient(60deg, transparent, rgba(255,255,255,0.2), transparent);
-            transform: rotate(45deg); animation: lightPass 4s infinite;
-        }
-        @keyframes lightPass { 0% { transform: translateX(-100%) rotate(45deg); } 100% { transform: translateX(100%) rotate(45deg); } }
 
-        /* 揭曉視窗動畫 */
         .reveal-overlay {
             position: fixed; inset: 0; z-index: 9999;
             background: rgba(2, 6, 23, 0.98);
@@ -66,12 +85,7 @@
             opacity: 0; transition: all 0.5s ease;
         }
         .reveal-overlay.active { display: flex; opacity: 1; }
-        .reveal-content {
-            transform: scale(0.9) translateY(20px);
-            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        .reveal-overlay.active .reveal-content { transform: scale(1) translateY(0); }
-
+        
         .bar-anim { transition: height 1.2s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
     </style>
 </head>
@@ -97,22 +111,15 @@
         const syncColors = ['#818cf8', '#34d399', '#fbbf24', '#f472b6'];
         let rawData = null;
 
-        // 【核心修正】地毯式搜尋答案文字
         const findExpertAnalysis = (poll) => {
-            if (!poll) return "載入中...";
-            // 優先搜尋明確的欄位
             const priorityKeys = ['expertAnalysis', 'analysis', 'expertMsg', 'description', 'expert'];
             for (let key of priorityKeys) {
                 if (poll[key] && typeof poll[key] === 'string' && poll[key].length > 2) return poll[key];
             }
-            // 如果都沒找到，掃描所有字串內容，排除掉題目本身
             let foundText = "";
             const deepScan = (obj) => {
-                if (typeof obj === 'string' && obj !== poll.question && obj.length > foundText.length) {
-                    foundText = obj;
-                } else if (obj && typeof obj === 'object') {
-                    Object.values(obj).forEach(deepScan);
-                }
+                if (typeof obj === 'string' && obj !== poll.question && obj.length > foundText.length) foundText = obj;
+                else if (obj && typeof obj === 'object') Object.values(obj).forEach(deepScan);
             };
             deepScan(poll);
             return foundText || "數據分析完成，請參考現場專家講解。";
@@ -124,7 +131,7 @@
             const activeEntry = Object.entries(rawData).find(([id, p]) => p.isActive === true);
             
             if (!activeEntry) {
-                root.innerHTML = `<div class="h-full flex items-center justify-center opacity-30 text-2xl font-light">WAITING FOR STAGE START...</div>`;
+                root.innerHTML = `<div class="h-full flex items-center justify-center opacity-30 text-2xl font-light italic">Waiting for connection...</div>`;
                 return;
             }
 
@@ -139,31 +146,31 @@
                 <div class="flex justify-between items-center shrink-0">
                     <div class="flex items-center gap-2 bg-red-600/20 px-4 py-1.5 rounded-full border border-red-600/30">
                         <div class="w-2 h-2 bg-red-600 rounded-full animate-ping"></div>
-                        <span class="text-[10px] font-bold tracking-widest uppercase">Stage Live</span>
+                        <span class="text-[10px] font-bold tracking-widest uppercase text-red-400">Live Stage</span>
                     </div>
                     <div class="flex bg-white/10 p-1 rounded-xl">
                         <button onclick="window.setUI('bar')" class="px-4 py-1.5 rounded-lg text-[10px] font-bold ${chartMode==='bar'?'bg-white text-black':'opacity-50'}">BAR</button>
                         <button onclick="window.setUI('pie')" class="px-4 py-1.5 rounded-lg text-[10px] font-bold ${chartMode==='pie'?'bg-white text-black':'opacity-50'}">PIE</button>
                     </div>
                     <div class="text-right">
-                        <span class="text-[10px] opacity-40 font-bold uppercase mr-3">Cumulative</span>
+                        <span class="text-[10px] opacity-40 font-bold uppercase mr-3">Votes</span>
                         <span class="text-4xl font-light tabular-nums text-yellow-400">${total}</span>
                     </div>
                 </div>
 
                 <div class="question-box p-8 shrink-0">
-                    <h1 class="text-3xl md:text-4xl font-light text-center leading-snug text-white/90">Q: ${poll.question}</h1>
+                    <h1 class="text-3xl md:text-4xl font-light text-center leading-snug text-white/95">Q: ${poll.question}</h1>
                 </div>
 
                 <div class="flex-1 min-h-0 flex gap-6 overflow-hidden">
                     ${chartMode !== 'none' ? `
-                    <div class="flex-1 flex items-end justify-around bg-white/[0.02] rounded-[2.5rem] border border-white/5 p-10 gap-8">
+                    <div class="flex-1 flex items-end justify-around bg-white/[0.01] rounded-[2.5rem] border border-white/5 p-10 gap-8">
                         ${options.map((o, i) => {
                             const h = total > 0 ? (o.voteCount / total * 100) : 5;
                             return `
                             <div class="flex-1 flex flex-col items-center h-full justify-end">
                                 <span class="mb-3 text-lg font-bold" style="color:${syncColors[i%4]}">${o.voteCount}</span>
-                                <div class="w-full rounded-t-xl bar-anim" style="height:${Math.max(h, 5)}%; background:${syncColors[i%4]}; box-shadow: 0 0 30px ${syncColors[i%4]}33"></div>
+                                <div class="w-full rounded-t-xl bar-anim" style="height:${Math.max(h, 5)}%; background:${syncColors[i%4]}; box-shadow: 0 0 30px ${syncColors[i%4]}22"></div>
                                 <span class="mt-4 text-2xl font-light opacity-30">${String.fromCharCode(65+i)}</span>
                             </div>`
                         }).join('')}
@@ -173,4 +180,57 @@
                         ${options.map((o, i) => {
                             const isLeader = o.voteCount === maxVotes && maxVotes > 0;
                             return `
-                            <div class="flex-1 min-
+                            <div class="flex-1 min-h-0">
+                                <div class="option-card ${isLeader ? 'leading' : ''}">
+                                    <div class="text-4xl font-light mr-6 shrink-0" style="color:${syncColors[i%4]}">${String.fromCharCode(65+i)}</div>
+                                    <div class="flex-1 text-2xl font-light truncate">${o.text || o.label}</div>
+                                    ${isLeader ? '<div class="text-2xl ml-2 animate-bounce">👑</div>' : ''}
+                                </div>
+                            </div>`
+                        }).join('')}
+                    </div>
+                </div>
+
+                <button onclick="window.toggleAnswer(true)" class="shimmer-btn w-full h-20 rounded-2xl text-2xl font-bold shadow-2xl tracking-[0.5em] active:scale-95 transition-transform">
+                    揭 曉 專 家 權 威 分 析
+                </button>
+
+                <div id="reveal-layer" class="reveal-overlay ${window.ui.showAnswer ? 'active' : ''}">
+                    <div class="reveal-content max-w-5xl text-center px-12">
+                        <p class="text-indigo-400 text-sm tracking-[0.8em] mb-12 uppercase opacity-50">Deep Analysis Report</p>
+                        <h2 class="text-4xl md:text-6xl font-light leading-relaxed mb-24 text-white">「 ${expertMsg} 」</h2>
+                        <div class="flex justify-center gap-6">
+                            <button onclick="window.speak('${expertMsg.replace(/'/g, "\\'")}')" class="px-12 py-5 rounded-full border border-white/20 font-bold hover:bg-white/5 transition">播放語音</button>
+                            <button onclick="window.toggleAnswer(false)" class="px-16 py-5 rounded-full bg-white text-black font-bold text-xl hover:scale-105 transition-all shadow-2xl">返回現場</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        window.setUI = (c) => { window.ui.chart = c; render(); };
+        window.toggleAnswer = (s) => {
+            window.ui.showAnswer = s;
+            const el = document.getElementById('reveal-layer');
+            if (s) { el.style.display = 'flex'; setTimeout(() => el.classList.add('active'), 10); }
+            else { el.classList.remove('active'); setTimeout(() => el.style.display = 'none', 600); }
+        };
+        
+        window.speak = (msg) => {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(msg); u.lang = 'zh-TW'; u.rate = 0.95;
+            window.speechSynthesis.speak(u);
+        };
+
+        onValue(ref(db, 'polls'), (snap) => {
+            rawData = snap.val();
+            const activeEntry = Object.entries(rawData || {}).find(([id, p]) => p.isActive);
+            if (activeEntry && activeEntry[0] !== window.ui.currentPollId) {
+                window.ui.showAnswer = false;
+                window.ui.currentPollId = activeEntry[0];
+            }
+            render();
+        });
+    </script>
+</body>
+</html>
