@@ -2,75 +2,142 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>現場投票系統 - 專業流光優化版</title>
+    <title>Mastermind 綜藝大舞台 - 氣勢版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@700;900&display=swap');
         
         body { 
-            background: radial-gradient(circle at 50% -20%, #1e1b4b 0%, transparent 60%), #020617;
+            background: radial-gradient(circle at center, #1a1b4b 0%, #050505 100%);
             font-family: 'Noto Sans TC', sans-serif;
-            color: #ffffff; height: 100vh; margin: 0; padding: 1.5rem 2rem;
-            display: flex; flex-direction: column; overflow: hidden;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            padding: 1rem;
         }
 
-        /* 題幹：限制高度，確保下方空間 */
-        .question-box {
-            background: rgba(255, 255, 255, 0.02);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 2rem;
-            min-height: 20vh; /* 縮減高度，留給選項 */
-            display: flex; align-items: center; justify-content: center;
+        /* 👑 標題區：流光霓虹特效 */
+        .header-box {
+            position: relative;
+            background: rgba(10, 10, 32, 0.9);
+            border-radius: 1.5rem;
+            padding: 2px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 242, 254, 0.4);
         }
+        .header-box::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: conic-gradient(transparent, #00f2fe, transparent, #4facfe, transparent);
+            animation: rotate 4s linear infinite;
+        }
+        .header-content {
+            background: #0a0a20;
+            padding: 1rem 3rem;
+            border-radius: 1.4rem;
+        }
+        @keyframes rotate { 100% { transform: rotate(360deg); } }
 
-        /* 選項卡片：強制限制高度 */
-        .option-card {
+        /* 👑 選項配色與發光 */
+        .color-A { border-left: 12px solid #4ade80; color: #4ade80; } 
+        .color-B { border-left: 12px solid #3b82f6; color: #3b82f6; } 
+        .color-C { border-left: 12px solid #f97316; color: #f97316; } 
+        
+        .bar-A { background: linear-gradient(to top, #065f46, #4ade80); box-shadow: 0 0 25px rgba(74, 222, 128, 0.4); }
+        .bar-B { background: linear-gradient(to top, #1e40af, #3b82f6); box-shadow: 0 0 25px rgba(59, 130, 246, 0.4); }
+        .bar-C { background: linear-gradient(to top, #9a3412, #f97316); box-shadow: 0 0 25px rgba(249, 115, 22, 0.4); }
+
+        /* 選項卡片：升起動畫 */
+        .variety-card {
             background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 1.2rem;
-            padding: 0 1.5rem;
-            height: 100%;
-            display: flex; align-items: center;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            max-height: 80px;
+            animation: floatUp 0.6s ease-out;
         }
-        .option-card.leading {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: #fbbf24;
-            box-shadow: 0 0 30px rgba(251, 191, 36, 0.15);
-            transform: scale(1.02);
+        @keyframes floatUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 👑 黃金質感數字與跳動動畫 */
+        .vote-display {
+            font-size: 3.5rem;
+            font-weight: 900;
+            background: linear-gradient(to bottom, #fff, #ffd700, #ff8c00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 4px 2px #442200);
+            line-height: 1;
+        }
+        .vote-updated { animation: votePulse 0.4s ease-out; }
+        @keyframes votePulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
         }
 
-        /* 流光按鈕 */
-        .shimmer-btn {
-            position: relative; overflow: hidden;
-            background: linear-gradient(90deg, #4f46e5, #9333ea, #db2777);
+        /* 長條圖升起動畫 */
+        .bar-anim { transition: height 1s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+        /* 👑 揭曉按鈕流光動畫 */
+        .reveal-btn {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(90deg, #ff416c, #ff4b2b, #ff416c);
             background-size: 200% auto;
-            animation: shimmerMove 3s linear infinite;
+            border-radius: 1.5rem;
+            box-shadow: 0 0 25px rgba(255, 75, 43, 0.4);
+            animation: shimmerMove 3s linear infinite, glowPulse 1.5s infinite;
         }
-        @keyframes shimmerMove { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        @keyframes shimmerMove { 100% { background-position: 200% center; } }
+        @keyframes glowPulse { 0%, 100% { box-shadow: 0 0 25px rgba(255, 75, 43, 0.4); } 50% { box-shadow: 0 0 40px rgba(255, 75, 43, 0.6); } }
 
-        /* 揭曉視窗 */
-        .reveal-overlay {
-            position: fixed; inset: 0; z-index: 1000;
-            background: rgba(2, 6, 23, 0.98);
+        /* 👑 全屏專家解析 (斜體) */
+        #expert-overlay {
+            position: fixed; inset: 0;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.95);
             display: none; align-items: center; justify-content: center;
-            opacity: 0; transition: all 0.6s ease;
+            padding: 3rem;
+            animation: fadeIn 0.5s ease-out;
         }
-        .reveal-overlay.active { display: flex; opacity: 1; }
-
-        .bar-anim { transition: height 1.2s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(1.1); } to { opacity: 1; transform: scale(1); } }
+        
+        .expert-text {
+            font-weight: 700;
+            font-style: italic; /* 👑 斜體效果核心 */
+            color: #fff;
+            text-align: center;
+            line-height: 1.3;
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
+        }
     </style>
 </head>
-<body>
+<body class="p-6">
 
-    <div id="root" class="h-full flex flex-col gap-6"></div>
+    <div id="root" class="h-full flex flex-col w-full max-w-[1600px] mx-auto overflow-hidden"></div>
+
+    <div id="expert-overlay">
+        <div class="bg-yellow-400 text-black px-12 py-2 rounded-full text-xl font-black mb-12 shadow-[0_0_30px_rgba(250,204,21,0.5)]">專家深度解析 EXPERT ANALYSIS</div>
+        <div id="expert-content" class="expert-text text-6xl md:text-7xl"></div>
+        <div class="flex gap-10 mt-20">
+            <button onclick="window.speak()" class="bg-cyan-500 hover:bg-cyan-400 text-white px-20 py-6 rounded-full text-3xl font-black shadow-xl">🔊 播放語音</button>
+            <button onclick="window.closeExpert()" class="bg-white/10 hover:bg-white/20 text-white px-20 py-6 rounded-full text-3xl font-black border border-white/20">返回投票面板</button>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
+            apiKey: "AIzaSyAt_319BG9mDYgbeZJhCWz52iMfdnaTbTE",
+            authDomain: "voting-event.firebaseapp.com",
             databaseURL: "https://voting-event-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "voting-event"
         };
@@ -78,123 +145,152 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // 新增 lastActiveId 追蹤
-        window.ui = { showAnswer: false, lastActiveId: null };
-        const colors = ['#818cf8', '#34d399', '#f97316', '#f472b6'];
+        let activePollId = null;
+        let lastExpertMsg = "";
+        window.ui = { chart: 'bar', hideCharts: false };
 
-        // 優化解析抓取邏輯
-        const findAnalysis = (poll) => {
-            if (poll.expertAnalysis) return poll.expertAnalysis;
-            if (poll.analysis) return poll.analysis;
-            let longest = "";
-            const scan = (item) => {
-                if (typeof item === 'string' && item !== poll.question) {
-                    if (item.length > longest.length) longest = item;
-                } else if (item && typeof item === 'object') {
-                    Object.values(item).forEach(scan);
-                }
-            };
-            scan(poll);
-            return longest || "分析資料準備中...";
-        };
-
-        const render = () => {
-            if (!window.rawData) return;
-            const activeEntry = Object.entries(window.rawData).find(([id, p]) => p.isActive === true);
+        const render = (data) => {
+            const root = document.getElementById('root');
+            const activeEntry = Object.entries(data || {}).find(([id, p]) => p.isActive);
             
             if (!activeEntry) {
-                document.getElementById('root').innerHTML = `
-                    <div class="h-full flex flex-col items-center justify-center gap-10">
-                        <div class="opacity-20 text-4xl font-light tracking-tighter italic">WAITING FOR STAGE START...</div>
-                        <div class="bg-white p-4 rounded-3xl"><img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://voting-event.web.app/vote" class="w-48 h-48"></div>
-                    </div>`;
-                window.ui.lastActiveId = null;
+                renderIdle(root);
+                activePollId = null;
+                window.closeExpert();
                 return;
             }
 
-            const [id, poll] = activeEntry;
-
-            // ⚡️ 自動重置機制：如果切換題目，則關閉解答視窗
-            if (window.ui.lastActiveId !== id) {
-                window.ui.lastActiveId = id;
-                window.ui.showAnswer = false;
+            const [pollId, poll] = activeEntry;
+            if (activePollId !== pollId) {
+                activePollId = pollId;
+                window.closeExpert();
             }
 
             const options = Object.values(poll.options || {});
             const total = options.reduce((s, o) => s + (Number(o.voteCount) || 0), 0);
-            const maxVotes = Math.max(...options.map(o => o.voteCount));
-            const analysis = findAnalysis(poll);
+            lastExpertMsg = poll.expertAnalysis || poll.analysis || poll.correctAnswer || "專家正在輸入解析中...";
 
-            document.getElementById('root').innerHTML = `
-                <div class="flex justify-between items-center shrink-0">
-                    <div class="flex items-center gap-2 bg-red-600/20 px-4 py-1.5 rounded-full border border-red-600/30">
-                        <div class="w-2 h-2 bg-red-600 rounded-full animate-ping"></div>
-                        <span class="text-[10px] font-bold tracking-[0.2em] uppercase">Stage Live</span>
+            root.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center gap-4 bg-black/40 px-6 py-2 rounded-full border border-white/10 shadow-lg">
+                        <span class="flex h-3 w-3 relative">
+                            <span class="animate-ping absolute h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-red-600"></span>
+                        </span>
+                        <span class="text-sm font-black tracking-widest text-red-500 uppercase">Live REPORT</span>
+                        <div class="w-[1px] h-4 bg-white/20"></div>
+                        <span class="text-sm font-bold">總票數：<span class="text-3xl text-yellow-400 font-bold ml-1 tabular-nums">${total}</span></span>
                     </div>
-                    <div class="text-right">
-                        <span class="text-xs opacity-40 mr-3 tracking-widest uppercase">Cumulative Votes</span>
-                        <span class="text-5xl font-light tabular-nums text-yellow-400">${total}</span>
+                    <div class="flex gap-2 bg-black/40 p-1 rounded-full">
+                        <button onclick="window.setUI('bar')" class="px-5 py-2 rounded-full text-xs font-bold ${window.ui.chart==='bar' && !window.ui.hideCharts ?'bg-blue-600 text-white shadow-lg':'text-white/40 hover:text-white'}">長條圖</button>
+                        <button onclick="window.setUI('pie')" class="px-5 py-2 rounded-full text-xs font-bold ${window.ui.chart==='pie' && !window.ui.hideCharts ?'bg-blue-600 text-white shadow-lg':'text-white/40 hover:text-white'}">圓餅圖</button>
+                        <button onclick="window.toggleHide()" class="px-5 py-2 rounded-full text-xs font-bold ${window.ui.hideCharts?'bg-red-600 text-white shadow-lg':'text-white/40 hover:text-white'}">${window.ui.hideCharts?'顯示數據圖':'隱藏數據圖'}</button>
                     </div>
                 </div>
 
-                <div class="question-box px-16 py-6">
-                    <h1 class="text-4xl md:text-5xl font-light text-center leading-snug text-white/90">Q: ${poll.question}</h1>
+                <div class="header-box mb-8 self-center">
+                    <div class="header-content text-center">
+                        <h1 class="text-4xl lg:text-5xl font-black text-white leading-tight">Q: ${poll.question}</h1>
+                    </div>
                 </div>
 
-                <div class="flex-1 min-h-0 flex gap-8">
-                    <div class="flex-1 bg-white/[0.02] rounded-[2.5rem] border border-white/5 p-10 flex items-end justify-around gap-8">
-                        ${options.map((o, i) => {
-                            const h = total > 0 ? (o.voteCount / total * 100) : 5;
-                            return `
-                            <div class="flex-1 flex flex-col items-center h-full justify-end">
-                                <span class="mb-3 text-lg font-bold opacity-80" style="color:${colors[i%4]}">${o.voteCount}</span>
-                                <div class="w-full rounded-t-xl bar-anim shadow-lg shadow-${colors[i%4]}/20" style="height:${Math.max(h, 5)}%; background:${colors[i%4]}"></div>
-                                <span class="mt-4 text-2xl font-light opacity-50">${String.fromCharCode(65+id === 'a' ? 65 : 65+i)}</span>
-                            </div>`
-                        }).join('')}
+                <div class="flex-1 flex gap-8 items-stretch overflow-hidden mb-6">
+                    ${!window.ui.hideCharts ? `
+                    <div class="w-1/2 flex items-center justify-center bg-white/5 rounded-[2.5rem] p-10 border border-white/10 relative">
+                        ${window.ui.chart === 'bar' ? renderBar(options, total) : renderPie(options, total)}
                     </div>
+                    ` : ''}
 
-                    <div class="w-5/12 flex flex-col gap-3">
+                    <div class="${window.ui.hideCharts ? 'max-w-4xl mx-auto w-full' : 'w-1/2'} flex flex-col justify-center gap-4">
                         ${options.map((o, i) => {
-                            const isLeader = o.voteCount === maxVotes && maxVotes > 0;
+                            const char = String.fromCharCode(65+i);
                             return `
-                            <div class="flex-1 min-h-0">
-                                <div class="option-card ${isLeader ? 'leading' : ''}">
-                                    <div class="text-4xl font-light mr-6 shrink-0" style="color:${colors[i%4]}">${String.fromCharCode(65+i)}</div>
-                                    <div class="flex-1 text-2xl font-light truncate">${o.text || o.label}</div>
-                                    ${isLeader ? '<div class="text-2xl ml-2 animate-bounce">👑</div>' : ''}
+                                <div id="card-${char}" class="variety-card flex-1 px-10 py-3 flex justify-between items-center color-${char}">
+                                    <div class="flex items-center gap-8 overflow-hidden mr-4">
+                                        <div class="w-14 h-14 shrink-0 rounded-xl bg-white text-blue-900 flex items-center justify-center text-4xl font-black shadow-lg">${char}</div>
+                                        <div class="text-3xl font-bold truncate">${o.text || o.label}</div>
+                                    </div>
+                                    <div class="text-right shrink-0 ${window.ui.hideCharts ? 'hidden' : 'block'}">
+                                        <div id="vote-val-${char}" class="vote-display vote-updated tabular-nums">${o.voteCount}</div>
+                                        <div class="text-[10px] opacity-40 font-bold uppercase tracking-widest mt-1">Votes</div>
+                                    </div>
                                 </div>
-                            </div>`
+                            `;
                         }).join('')}
                     </div>
                 </div>
 
-                <button onclick="window.toggleReveal(true)" class="shimmer-btn w-full h-20 rounded-2xl text-2xl font-bold shadow-[0_10px_40px_rgba(79,70,229,0.3)] tracking-[0.5em]">
-                    揭 曉 專 家 權 威 分 析
+                <button onclick="window.openExpert()" class="w-full reveal-btn py-6 text-4xl font-black animate-pulse">
+                    🔥 揭曉專家解析 REVEAL ANALYSIS
                 </button>
+            `;
+        };
 
-                <div id="reveal-layer" class="reveal-overlay ${window.ui.showAnswer ? 'active' : ''}">
-                    <div class="reveal-content max-w-5xl text-center px-12">
-                        <p class="text-indigo-400 text-sm tracking-[0.8em] mb-12 uppercase opacity-60">Result Analysis Completed</p>
-                        <h2 class="text-4xl md:text-6xl font-light leading-snug mb-24 text-white">「 ${analysis} 」</h2>
-                        <button onclick="window.toggleReveal(false)" class="px-16 py-5 rounded-full bg-white text-black font-bold text-xl hover:scale-105 active:scale-95 transition-all shadow-2xl">
-                            返回計票現場
-                        </button>
+        const renderBar = (opts, total) => `
+            <div class="flex items-end justify-around w-full h-[350px] gap-8">
+                ${opts.map((o, i) => {
+                    const h = total > 0 ? (Number(o.voteCount) / total * 100) : 5;
+                    const char = String.fromCharCode(65+i);
+                    return `
+                        <div class="flex-1 flex flex-col items-center h-full justify-end">
+                            <div class="text-4xl font-black text-yellow-400 mb-4 tabular-nums">${o.voteCount}</div>
+                            <div class="w-full bar-anim bar-${char} rounded-t-2xl shadow-lg shadow-${char}/30" style="height: ${Math.max(h, 5)}%"></div>
+                            <div class="mt-4 text-sm font-bold opacity-30 tracking-widest uppercase">${char}</div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+
+        const renderPie = (opts, total) => {
+            let curr = 0;
+            const colors = ['#4ade80', '#3b82f6', '#f97316', '#ec4899'];
+            const paths = opts.map((o, i) => {
+                const p = total > 0 ? (Number(o.voteCount) / total) : 0;
+                const x1 = Math.cos(2 * Math.PI * curr); const y1 = Math.sin(2 * Math.PI * curr);
+                curr += p;
+                const x2 = Math.cos(2 * Math.PI * curr); const y2 = Math.sin(2 * Math.PI * curr);
+                return `<path d="M 0 0 L ${x1} ${y1} A 1 1 0 ${p > 0.5 ? 1 : 0} 1 ${x2} ${y2} Z" fill="${colors[i%4]}" stroke="rgba(0,0,0,0.2)" stroke-width="0.01"></path>`;
+            }).join('');
+            return `<div class="relative w-full h-full flex items-center justify-center"><svg viewBox="-1.02 -1.02 2.04 2.04" class="w-80 h-80 transform -rotate-90 drop-shadow-[0_0_40px_rgba(0,0,0,0.5)]">${paths}</svg><div class="absolute flex flex-col items-center justify-center"><div class="text-[12px] opacity-30 tracking-widest uppercase">Total</div><div class="text-6xl font-black">${total}</div></div></div>`;
+        };
+
+        const renderIdle = (root) => {
+            root.innerHTML = `
+                <div class="h-screen flex flex-col items-center justify-center text-center gap-12">
+                    <h1 class="text-8xl lg:text-9xl font-black tracking-tighter bg-gradient-to-b from-white to-gray-500 bg-clip-text text-transparent">Waiting...</h1>
+                    <div class="bg-white p-6 rounded-3xl mb-10 shadow-[0_0_60px_rgba(255,255,255,0.1)]">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://voting-event.web.app/vote" class="w-[300px] h-[300px]">
                     </div>
+                    <p class="text-3xl font-bold text-cyan-400 border border-cyan-500/20 px-12 py-4 rounded-full animate-pulse bg-cyan-600/10">請掃描 QR Code 參與即時投票</p>
                 </div>
             `;
         };
 
-        window.toggleReveal = (s) => {
-            window.ui.showAnswer = s;
-            const el = document.getElementById('reveal-layer');
-            if (s) { el.style.display = 'flex'; setTimeout(() => el.classList.add('active'), 50); }
-            else { el.classList.remove('active'); setTimeout(() => el.style.display = 'none', 600); }
+        // UI 控制
+        window.setUI = (c) => { window.ui.chart = c; window.ui.hideCharts = false; render(lastData); };
+        window.toggleHide = () => { window.ui.hideCharts = !window.ui.hideCharts; render(lastData); };
+        
+        // 專家解答控制
+        window.openExpert = () => {
+            document.getElementById('expert-content').innerText = lastExpertMsg;
+            document.getElementById('expert-overlay').style.display = 'flex';
+        };
+        window.closeExpert = () => {
+            document.getElementById('expert-overlay').style.display = 'none';
+            window.speechSynthesis.cancel();
+        };
+        window.speak = () => {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(lastExpertMsg);
+            utterance.lang = 'zh-TW'; utterance.rate = 1;
+            window.speechSynthesis.speak(utterance);
         };
 
+        let lastData = null;
         onValue(ref(db, 'polls'), (snap) => {
-            window.rawData = snap.val();
-            render();
+            lastData = snap.val();
+            render(lastData);
         });
     </script>
 </body>
