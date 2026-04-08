@@ -2,25 +2,17 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>即時投票展示系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
 </head>
-<body class="bg-slate-950 text-white min-h-screen">
-    <div id="root">
-        <div class="flex items-center justify-center h-screen">
-            <p class="text-2xl animate-pulse">📡 系統初始化中...</p>
-        </div>
-    </div>
-
+<body class="bg-slate-950 text-white">
+    <div id="root"></div>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // 從你的 firebase.ts 提取的正確配置
         const firebaseConfig = {
             apiKey: "AIzaSyAt_319BG9mDYgbeZJhCWz52iMfdnaTbTE",
             authDomain: "voting-event.firebaseapp.com",
@@ -31,56 +23,45 @@
             appId: "1:680113677727:web:8dc23a48f35b0bcb0b09aa"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
         const { useState, useEffect } = React;
-
         function App() {
             const [poll, setPoll] = useState(null);
-            const [status, setStatus] = useState("連線中...");
+            const [msg, setMsg] = useState("📡 正在嘗試連線 Firebase...");
 
             useEffect(() => {
-                const pollsRef = ref(db, 'polls');
-                onValue(pollsRef, (snapshot) => {
-                    const data = snapshot.val();
-                    if (data) {
-                        // 依照 DisplayPage.tsx 的邏輯找出 isActive 題目
-                        const activeEntry = Object.entries(data).find(([_, v]) => v.isActive);
-                        if (activeEntry) {
-                            const [id, val] = activeEntry;
-                            const options = val.options ? Object.entries(val.options).map(([optId, opt]) => ({
-                                text: opt.text || opt.label,
-                                count: opt.voteCount || 0
-                            })) : [];
-                            setPoll({ question: val.question, options });
+                try {
+                    const app = initializeApp(firebaseConfig);
+                    const db = getDatabase(app);
+                    const pollsRef = ref(db, 'polls');
+                    
+                    onValue(pollsRef, (snap) => {
+                        const data = snap.val();
+                        if (data) {
+                            // 抓取第一個題目測試
+                            const firstPoll = Object.values(data)[0];
+                            const options = firstPoll.options ? Object.values(firstPoll.options) : [];
+                            setPoll({ question: firstPoll.question, options });
                         } else {
-                            setStatus("等待主持人開啟題目...");
+                            setMsg("❌ 資料庫裡沒有題目 (polls 分支是空的)");
                         }
-                    } else {
-                        setStatus("資料庫內無題目資料。");
-                    }
-                }, (error) => {
-                    setStatus("資料庫連線錯誤: " + error.message);
-                });
+                    }, (err) => {
+                        setMsg("❌ Firebase 拒絕連線: " + err.message);
+                    });
+                } catch (e) {
+                    setMsg("❌ 程式執行出錯: " + e.message);
+                }
             }, []);
 
-            if (!poll) {
-                return (
-                    <div className="flex flex-col items-center justify-center h-screen text-center">
-                        <div className="text-6xl mb-6">⏳</div>
-                        <h1 className="text-3xl font-bold">{status}</h1>
-                    </div>
-                );
-            }
+            if (!poll) return <div class="h-screen flex items-center justify-center text-xl font-bold p-10 text-center">{msg}</div>;
 
             return (
-                <div className="p-8 max-w-4xl mx-auto">
-                    <h1 className="text-5xl font-black mb-12 text-center text-blue-400">{poll.question}</h1>
-                    <div className="space-y-4">
+                <div class="p-10 max-w-4xl mx-auto">
+                    <h1 class="text-4xl font-black mb-10 text-blue-400">{poll.question}</h1>
+                    <div class="space-y-4">
                         {poll.options.map((opt, i) => (
-                            <div key={i} className="flex justify-between items-center p-6 bg-white/10 rounded-3xl border border-white/10">
-                                <span className="text-2xl font-bold">{opt.text}</span>
-                                <span className="text-3xl font-black text-green-400 tabular-nums">{opt.count} 票</span>
+                            <div key={i} class="p-6 bg-white/10 rounded-2xl flex justify-between border border-white/10">
+                                <span class="text-2xl font-bold">{opt.text || opt.label}</span>
+                                <span class="text-3xl font-black text-green-400">{opt.voteCount || 0} 票</span>
                             </div>
                         ))}
                     </div>
@@ -88,8 +69,7 @@
             );
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(React.createElement(App));
+        ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
     </script>
 </body>
 </html>
