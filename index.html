@@ -2,10 +2,10 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>現場投票系統 - 權威舞台最終版 (語音增強)</title>
+    <title>現場投票系統 - 輕量精緻版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
         
         body { 
             background: radial-gradient(circle at 50% -20%, #1e1b4b 0%, transparent 60%), #020617;
@@ -14,7 +14,6 @@
             display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* 標題動畫 */
         .question-box {
             background: rgba(255, 255, 255, 0.02);
             backdrop-filter: blur(20px);
@@ -25,7 +24,6 @@
             animation: slideDown 0.8s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
-        /* 選項卡片 */
         .option-card {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -43,7 +41,6 @@
             transform: scale(1.03);
         }
 
-        /* 揭曉背景氣勢 */
         .reveal-overlay {
             position: fixed; inset: 0; z-index: 1000;
             background: rgba(2, 6, 23, 0.98);
@@ -51,23 +48,13 @@
             opacity: 0; transition: all 0.6s ease;
         }
         .reveal-overlay.active { 
-            display: flex; 
-            opacity: 1; 
+            display: flex; opacity: 1; 
             background: radial-gradient(circle at center, #1e1b4b 0%, #020617 100%);
-        }
-        
-        /* 揭曉時的旋轉掃描光 */
-        .reveal-overlay.active::before {
-            content: "";
-            position: absolute;
-            width: 200%; height: 200%;
-            background: conic-gradient(from 0deg at 50% 50%, transparent 0%, rgba(99, 102, 241, 0.08) 25%, transparent 50%);
-            animation: rotate 10s linear infinite;
         }
 
         .analysis-text {
             font-style: italic;
-            font-weight: 900;
+            font-weight: 700;
             line-height: 1.4;
             background: linear-gradient(to bottom, #ffffff 30%, #a5b4fc 100%);
             -webkit-background-clip: text;
@@ -92,15 +79,15 @@
         
         .bar-anim { transition: height 1.2s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
 
-        /* 語音按鈕專用樣式 */
         .voice-btn {
             background: rgba(99, 102, 241, 0.2);
             border: 1px solid rgba(99, 102, 241, 0.5);
             transition: all 0.3s ease;
         }
-        .voice-btn:hover {
-            background: rgba(99, 102, 241, 0.4);
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        .voice-btn.speaking {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.5);
+            color: #fca5a5;
         }
     </style>
 </head>
@@ -120,12 +107,12 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        window.ui = { showAnswer: false, lastActiveId: null, mode: 'bar' };
+        window.ui = { showAnswer: false, lastActiveId: null, mode: 'bar', isSpeaking: false };
         const colors = ['#818cf8', '#34d399', '#f97316', '#f472b6'];
 
         const findAnalysis = (poll) => {
             let rawText = poll.expertAnswer || poll.expertAnalysis || poll.analysis || "分析資料準備中...";
-            return rawText.replace("專家解密：", "<br/><span class='text-3xl opacity-70 mt-6 block text-indigo-300 font-bold'>—— 專家權威解密 ——</span><br/>");
+            return rawText.replace("專家解密：", "<br/><span class='text-2xl opacity-70 mt-4 block text-indigo-300 font-bold'>—— 專家權威解密 ——</span><br/>");
         };
 
         const render = () => {
@@ -153,22 +140,22 @@
                     <div class="flex gap-4">
                         <div class="flex items-center gap-2 bg-red-600/20 px-4 py-1.5 rounded-full border border-red-600/30">
                             <div class="w-2 h-2 bg-red-600 rounded-full animate-ping"></div>
-                            <span class="text-[10px] font-bold tracking-[0.2em] uppercase text-red-500">Stage Live</span>
+                            <span class="text-[10px] font-bold tracking-widest uppercase text-red-500">Stage Live</span>
                         </div>
                         <div class="flex bg-white/5 rounded-full p-1 border border-white/10">
-                            <button onclick="window.setMode('bar')" class="px-4 py-1 rounded-full text-xs transition ${window.ui.mode==='bar'?'bg-indigo-600 shadow-lg shadow-indigo-500/50':'opacity-50'}">長條圖</button>
-                            <button onclick="window.setMode('pie')" class="px-4 py-1 rounded-full text-xs transition ${window.ui.mode==='pie'?'bg-indigo-600 shadow-lg shadow-indigo-500/50':'opacity-50'}">圓餅圖</button>
-                            <button onclick="window.setMode('hidden')" class="px-4 py-1 rounded-full text-xs transition ${window.ui.mode==='hidden'?'bg-slate-700':'opacity-50'}">隱藏數據</button>
+                            <button onclick="window.setMode('bar')" class="px-4 py-1 rounded-full text-[10px] transition ${window.ui.mode==='bar'?'bg-indigo-600 shadow-lg':'opacity-50'}">長條圖</button>
+                            <button onclick="window.setMode('pie')" class="px-4 py-1 rounded-full text-[10px] transition ${window.ui.mode==='pie'?'bg-indigo-600 shadow-lg':'opacity-50'}">圓餅圖</button>
+                            <button onclick="window.setMode('hidden')" class="px-4 py-1 rounded-full text-[10px] transition ${window.ui.mode==='hidden'?'bg-slate-700':'opacity-50'}">隱藏數據</button>
                         </div>
                     </div>
                     <div class="text-right">
-                        <span class="text-xs opacity-40 mr-3 tracking-widest uppercase">Cumulative Votes</span>
-                        <span class="text-5xl font-black tabular-nums text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.4)]">${total}</span>
+                        <span class="text-[10px] opacity-40 mr-3 tracking-widest uppercase">Cumulative Votes</span>
+                        <span class="text-4xl font-bold tabular-nums text-yellow-400">${total}</span>
                     </div>
                 </div>
 
                 <div class="question-box px-16 py-6">
-                    <h1 class="text-4xl md:text-5xl font-bold text-center leading-snug text-white/90">Q: ${poll.question}</h1>
+                    <h1 class="text-3xl md:text-4xl font-bold text-center leading-snug text-white/90">Q: ${poll.question}</h1>
                 </div>
 
                 <div class="flex-1 min-h-0 flex gap-8 mb-4">
@@ -184,32 +171,30 @@
                             return `
                             <div class="flex-1 min-h-0" style="animation-delay: ${i*0.1}s">
                                 <div class="option-card ${isLeader && window.ui.mode !== 'hidden' ? 'leading' : ''}">
-                                    <div class="text-4xl font-black mr-6 shrink-0" style="color:${colors[i%4]}">${String.fromCharCode(65+i)}</div>
-                                    <div class="flex-1 text-2xl font-bold truncate">${o.text || o.label}</div>
-                                    ${(isLeader && window.ui.mode !== 'hidden') ? '<div class="text-3xl ml-2 animate-bounce">👑</div>' : ''}
+                                    <div class="text-3xl font-bold mr-6 shrink-0" style="color:${colors[i%4]}">${String.fromCharCode(65+i)}</div>
+                                    <div class="flex-1 text-xl font-medium truncate">${o.text || o.label}</div>
+                                    ${(isLeader && window.ui.mode !== 'hidden') ? '<div class="text-2xl ml-2 animate-bounce">👑</div>' : ''}
                                 </div>
                             </div>`
                         }).join('')}
                     </div>
                 </div>
 
-                <button onclick="window.toggleReveal(true)" class="shimmer-btn w-full h-24 rounded-3xl text-3xl font-black shadow-[0_20px_50px_rgba(79,70,229,0.3)] tracking-[0.6em] hover:scale-[1.01] active:scale-95 transition-transform">
+                <button onclick="window.toggleReveal(true)" class="shimmer-btn w-full h-16 rounded-2xl text-xl font-bold shadow-lg tracking-widest hover:scale-[1.01] active:scale-95 transition-transform">
                     揭 曉 專 家 權 威 分 析
                 </button>
 
                 <div id="reveal-layer" class="reveal-overlay ${window.ui.showAnswer ? 'active' : ''}">
-                    <div class="max-w-6xl text-center px-10 relative z-10">
-                        <p class="text-indigo-400 text-sm tracking-[1.2em] mb-8 uppercase opacity-60 animate-pulse font-bold">Authority Analysis</p>
-                        <h2 class="text-4xl md:text-6xl leading-tight mb-16 analysis-text">
-                           「 ${analysis} 」
-                        </h2>
+                    <div class="max-w-5xl text-center px-10 relative z-10">
+                        <p class="text-indigo-400 text-xs tracking-widest mb-8 uppercase opacity-60 font-bold">Authority Analysis</p>
+                        <h2 class="text-3xl md:text-5xl leading-tight mb-12 analysis-text">「 ${analysis} 」</h2>
                         
                         <div class="flex flex-col md:flex-row items-center justify-center gap-6">
-                            <button onclick="window.speakAnalysis()" class="voice-btn px-12 py-5 rounded-full text-indigo-200 font-bold text-xl flex items-center gap-3">
+                            <button id="voiceBtn" onclick="window.toggleSpeech()" class="voice-btn px-10 py-4 rounded-full font-bold text-lg flex items-center gap-3 transition-all">
                                 <span>🔊 朗讀解析</span>
                             </button>
                             
-                            <button onclick="window.toggleReveal(false)" class="px-20 py-6 rounded-full bg-white text-black font-black text-2xl hover:scale-110 active:scale-95 transition-all shadow-[0_0_50px_rgba(255,255,255,0.4)]">
+                            <button onclick="window.toggleReveal(false)" class="px-16 py-4 rounded-full bg-white text-black font-bold text-lg hover:scale-105 transition-all">
                                 返回計票現場
                             </button>
                         </div>
@@ -224,9 +209,9 @@
                     const h = total > 0 ? (o.voteCount / total * 100) : 5;
                     return `
                     <div class="flex-1 flex flex-col items-center h-full justify-end">
-                        <span class="mb-4 text-2xl font-black tabular-nums" style="color:${colors[i%4]}">${o.voteCount}</span>
-                        <div class="w-full rounded-t-2xl bar-anim" style="height:${Math.max(h, 5)}%; background:linear-gradient(to top, ${colors[i%4]}dd, ${colors[i%4]}); box-shadow: 0 0 30px ${colors[i%4]}33;"></div>
-                        <span class="mt-6 text-3xl font-black opacity-30">${String.fromCharCode(65+i)}</span>
+                        <span class="mb-4 text-xl font-bold tabular-nums" style="color:${colors[i%4]}">${o.voteCount}</span>
+                        <div class="w-full rounded-t-xl bar-anim" style="height:${Math.max(h, 5)}%; background:${colors[i%4]}; box-shadow: 0 0 20px ${colors[i%4]}33;"></div>
+                        <span class="mt-4 text-xl font-bold opacity-30">${String.fromCharCode(65+i)}</span>
                     </div>`
                 }).join('')}
             </div>
@@ -242,37 +227,44 @@
                 const endX = Math.cos(2 * Math.PI * currentPercent);
                 const endY = Math.sin(2 * Math.PI * currentPercent);
                 const largeArc = percent > 0.5 ? 1 : 0;
-                return `<path d="M 0 0 L ${startX} ${startY} A 1 1 0 ${largeArc} 1 ${endX} ${endY} Z" fill="${colors[i%4]}" style="opacity:0.9" />`;
+                return `<path d="M 0 0 L ${startX} ${startY} A 1 1 0 ${largeArc} 1 ${endX} ${endY} Z" fill="${colors[i%4]}" />`;
             }).join('');
-
-            return `
-                <div class="relative w-[400px] h-[400px]">
-                    <svg viewBox="-1 -1 2 2" class="transform -rotate-90 w-full h-full drop-shadow-[0_0_40px_rgba(0,0,0,0.5)]">
-                        ${slices}
-                    </svg>
-                    <div class="absolute inset-0 flex items-center justify-center flex-col">
-                        <div class="bg-slate-900/80 backdrop-filter blur-md w-40 h-40 rounded-full flex flex-col items-center justify-center border border-white/10 shadow-2xl">
-                            <span class="text-xs opacity-50 tracking-[0.2em]">TOTAL</span>
-                            <span class="text-5xl font-black text-yellow-400">${total}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
+            return `<div class="relative w-[320px] h-[320px]"><svg viewBox="-1 -1 2 2" class="transform -rotate-90 w-full h-full">${slices}</svg></div>`;
         };
 
         window.setMode = (m) => { window.ui.mode = m; render(); };
 
-        // 🔊 朗讀功能邏輯
-        window.speakAnalysis = () => {
-            window.speechSynthesis.cancel(); // 先停止之前的播放
-            const activeEntry = Object.values(window.rawData).find(p => p.isActive);
-            if(activeEntry) {
-                const textToSpeak = activeEntry.expertAnswer || activeEntry.expertAnalysis || activeEntry.analysis || "";
-                if(textToSpeak) {
-                    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        // 修正後的語音切換邏輯
+        window.toggleSpeech = () => {
+            const btn = document.getElementById('voiceBtn');
+            
+            if (window.ui.isSpeaking) {
+                // 如果正在播放，則停止
+                window.speechSynthesis.cancel();
+                window.ui.isSpeaking = false;
+                btn.innerHTML = '<span>🔊 朗讀解析</span>';
+                btn.classList.remove('speaking');
+            } else {
+                // 如果沒在播放，則開始
+                const activeEntry = Object.values(window.rawData).find(p => p.isActive);
+                const text = activeEntry?.expertAnswer || activeEntry?.expertAnalysis || activeEntry?.analysis || "";
+                
+                if (text) {
+                    window.speechSynthesis.cancel(); // 清除排隊
+                    const utterance = new SpeechSynthesisUtterance(text.replace(/<[^>]*>/g, '')); // 移除HTML標籤
                     utterance.lang = 'zh-TW';
-                    utterance.rate = 0.95; 
+                    utterance.rate = 0.95;
+                    
+                    utterance.onend = () => {
+                        window.ui.isSpeaking = false;
+                        btn.innerHTML = '<span>🔊 朗讀解析</span>';
+                        btn.classList.remove('speaking');
+                    };
+
                     window.speechSynthesis.speak(utterance);
+                    window.ui.isSpeaking = true;
+                    btn.innerHTML = '<span>⏹ 停止朗讀</span>';
+                    btn.classList.add('speaking');
                 }
             }
         };
@@ -285,7 +277,8 @@
                 setTimeout(() => el.classList.add('active'), 50);
             } else { 
                 el.classList.remove('active'); 
-                window.speechSynthesis.cancel(); // 關閉視窗時自動停止語音
+                window.speechSynthesis.cancel(); // 關閉視窗強制停止
+                window.ui.isSpeaking = false;
                 setTimeout(() => el.style.display = 'none', 600); 
             }
         };
