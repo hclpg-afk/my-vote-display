@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>現場投票系統 - 權威舞台最終版</title>
+    <title>現場投票系統 - 權威舞台最終版 (語音增強)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
@@ -91,6 +91,17 @@
         @keyframes shimmerMove { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
         
         .bar-anim { transition: height 1.2s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
+
+        /* 語音按鈕專用樣式 */
+        .voice-btn {
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            transition: all 0.3s ease;
+        }
+        .voice-btn:hover {
+            background: rgba(99, 102, 241, 0.4);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -112,10 +123,8 @@
         window.ui = { showAnswer: false, lastActiveId: null, mode: 'bar' };
         const colors = ['#818cf8', '#34d399', '#f97316', '#f472b6'];
 
-        // 核心邏輯：修正抓不到資料的問題，並美化排版
         const findAnalysis = (poll) => {
             let rawText = poll.expertAnswer || poll.expertAnalysis || poll.analysis || "分析資料準備中...";
-            // 將「專家解密：」這類關鍵字斷行，增加氣勢
             return rawText.replace("專家解密：", "<br/><span class='text-3xl opacity-70 mt-6 block text-indigo-300 font-bold'>—— 專家權威解密 ——</span><br/>");
         };
 
@@ -190,13 +199,20 @@
 
                 <div id="reveal-layer" class="reveal-overlay ${window.ui.showAnswer ? 'active' : ''}">
                     <div class="max-w-6xl text-center px-10 relative z-10">
-                        <p class="text-indigo-400 text-sm tracking-[1.2em] mb-12 uppercase opacity-60 animate-pulse font-bold">Authority Analysis</p>
-                        <h2 class="text-4xl md:text-6xl leading-tight mb-20 analysis-text">
+                        <p class="text-indigo-400 text-sm tracking-[1.2em] mb-8 uppercase opacity-60 animate-pulse font-bold">Authority Analysis</p>
+                        <h2 class="text-4xl md:text-6xl leading-tight mb-16 analysis-text">
                            「 ${analysis} 」
                         </h2>
-                        <button onclick="window.toggleReveal(false)" class="px-24 py-6 rounded-full bg-white text-black font-black text-2xl hover:scale-110 active:scale-95 transition-all shadow-[0_0_50px_rgba(255,255,255,0.4)]">
-                            返回計票現場
-                        </button>
+                        
+                        <div class="flex flex-col md:flex-row items-center justify-center gap-6">
+                            <button onclick="window.speakAnalysis()" class="voice-btn px-12 py-5 rounded-full text-indigo-200 font-bold text-xl flex items-center gap-3">
+                                <span>🔊 朗讀解析</span>
+                            </button>
+                            
+                            <button onclick="window.toggleReveal(false)" class="px-20 py-6 rounded-full bg-white text-black font-black text-2xl hover:scale-110 active:scale-95 transition-all shadow-[0_0_50px_rgba(255,255,255,0.4)]">
+                                返回計票現場
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -246,23 +262,30 @@
 
         window.setMode = (m) => { window.ui.mode = m; render(); };
 
+        // 🔊 朗讀功能邏輯
+        window.speakAnalysis = () => {
+            window.speechSynthesis.cancel(); // 先停止之前的播放
+            const activeEntry = Object.values(window.rawData).find(p => p.isActive);
+            if(activeEntry) {
+                const textToSpeak = activeEntry.expertAnswer || activeEntry.expertAnalysis || activeEntry.analysis || "";
+                if(textToSpeak) {
+                    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                    utterance.lang = 'zh-TW';
+                    utterance.rate = 0.95; 
+                    window.speechSynthesis.speak(utterance);
+                }
+            }
+        };
+
         window.toggleReveal = (s) => {
             window.ui.showAnswer = s;
             const el = document.getElementById('reveal-layer');
             if (s) { 
                 el.style.display = 'flex'; 
                 setTimeout(() => el.classList.add('active'), 50);
-                // 自動語音播報解答
-                const activeEntry = Object.values(window.rawData).find(p => p.isActive);
-                if(activeEntry && activeEntry.expertAnswer) {
-                    const utterance = new SpeechSynthesisUtterance(activeEntry.expertAnswer);
-                    utterance.lang = 'zh-TW';
-                    utterance.rate = 0.95; 
-                    window.speechSynthesis.speak(utterance);
-                }
             } else { 
                 el.classList.remove('active'); 
-                window.speechSynthesis.cancel();
+                window.speechSynthesis.cancel(); // 關閉視窗時自動停止語音
                 setTimeout(() => el.style.display = 'none', 600); 
             }
         };
