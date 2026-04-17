@@ -1,303 +1,253 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <title>現場投票系統 - 權威舞台最終版 (語音修正)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
-        
-        body { 
-            background: radial-gradient(circle at 50% -20%, #1e1b4b 0%, transparent 60%), #020617;
-            font-family: 'Noto Sans TC', sans-serif;
-            color: #ffffff; height: 100vh; margin: 0; padding: 1.5rem 2rem;
-            display: flex; flex-direction: column; overflow: hidden;
-        }
+<meta charset="UTF-8">
+<title>現場投票系統 - 舞台版</title>
+<script src="https://cdn.tailwindcss.com"></script>
 
-        .question-box {
-            background: rgba(255, 255, 255, 0.02);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 2rem;
-            min-height: 18vh;
-            display: flex; align-items: center; justify-content: center;
-            animation: slideDown 0.8s cubic-bezier(0.22, 1, 0.36, 1);
-        }
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
 
-        .option-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 1.2rem;
-            padding: 0 1.5rem;
-            height: 100%;
-            display: flex; align-items: center;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            animation: slideInRight 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-        }
-        .option-card.leading {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: #fbbf24;
-            box-shadow: 0 0 40px rgba(251, 191, 36, 0.2);
-            transform: scale(1.03);
-        }
+body {
+    background: radial-gradient(circle at 50% -20%, #1e1b4b 0%, transparent 60%), #020617;
+    font-family: 'Noto Sans TC', sans-serif;
+    color: #fff;
+    height: 100vh;
+    margin: 0;
+    padding: 1.5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
 
-        .reveal-overlay {
-            position: fixed; inset: 0; z-index: 1000;
-            background: rgba(2, 6, 23, 0.98);
-            display: none; align-items: center; justify-content: center;
-            opacity: 0; transition: all 0.6s ease;
-        }
-        .reveal-overlay.active { 
-            display: flex; opacity: 1; 
-            background: radial-gradient(circle at center, #1e1b4b 0%, #020617 100%);
-        }
-        
-        .reveal-overlay.active::before {
-            content: "";
-            position: absolute;
-            width: 200%; height: 200%;
-            background: conic-gradient(from 0deg at 50% 50%, transparent 0%, rgba(99, 102, 241, 0.08) 25%, transparent 50%);
-            animation: rotate 10s linear infinite;
-        }
+/* ===== Freeze ===== */
+body.freeze {
+    filter: brightness(0.7) saturate(0.8);
+}
 
-        .analysis-text {
-            font-style: italic;
-            font-weight: 900;
-            line-height: 1.4;
-            background: linear-gradient(to bottom, #ffffff 30%, #a5b4fc 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 0 30px rgba(165, 180, 252, 0.5));
-            transform: scale(0.9);
-            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .reveal-overlay.active .analysis-text { transform: scale(1); }
+/* ===== 問題區 ===== */
+.question-box {
+    background: rgba(255,255,255,0.02);
+    backdrop-filter: blur(20px);
+    border-radius: 2rem;
+    min-height: 18vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 
-        @keyframes rotate { 100% { transform: rotate(360deg); } }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-50px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideInRight { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
-        
-        .shimmer-btn {
-            position: relative; overflow: hidden;
-            background: linear-gradient(90deg, #4f46e5, #9333ea, #db2777);
-            background-size: 200% auto;
-            animation: shimmerMove 3s linear infinite;
-        }
-        @keyframes shimmerMove { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
-        
-        .bar-anim { transition: height 1.2s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
+/* ===== 選項 ===== */
+.option-card {
+    background: rgba(255,255,255,0.05);
+    border-radius: 1.2rem;
+    padding: 0 1.5rem;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+    transition: all .6s ease;
+}
 
-        .voice-btn {
-            background: rgba(99, 102, 241, 0.2);
-            border: 1px solid rgba(99, 102, 241, 0.5);
-            transition: all 0.3s ease;
-        }
-        /* 播放中的按鈕視覺反饋 */
-        .voice-btn.speaking {
-            background: rgba(239, 68, 68, 0.3);
-            border-color: rgba(239, 68, 68, 0.6);
-            color: #fca5a5;
-            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
-        }
-    </style>
+/* 勝者 */
+.option-card.winner {
+    transform: scale(1.15);
+    background: linear-gradient(135deg, rgba(251,191,36,0.35), rgba(251,191,36,0.1));
+    box-shadow: 0 0 120px rgba(251,191,36,0.6);
+    z-index: 10;
+}
+
+/* 敗者 */
+.option-card.loser {
+    opacity: .25;
+    transform: scale(.9);
+    filter: blur(1px);
+}
+
+/* Reveal */
+.reveal-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(2,6,23,.98);
+}
+
+.reveal-overlay.active {
+    display: flex;
+}
+
+/* 閃光 */
+.reveal-overlay.active::after {
+    content:"";
+    position:absolute;
+    inset:0;
+    background: radial-gradient(circle, rgba(255,255,255,.15), transparent 70%);
+    animation: flash .6s ease;
+}
+
+@keyframes flash {
+    0%{opacity:0}
+    30%{opacity:1}
+    100%{opacity:0}
+}
+
+.voice-btn.speaking {
+    background: rgba(239,68,68,0.3);
+    color: #fca5a5;
+}
+</style>
 </head>
+
 <body>
+<div id="root" class="h-full flex flex-col gap-6"></div>
 
-    <div id="root" class="h-full flex flex-col gap-6"></div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+/* Firebase */
+const app = initializeApp({
+    databaseURL: "https://voting-event-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "voting-event"
+});
+const db = getDatabase(app);
 
-        const firebaseConfig = {
-            databaseURL: "https://voting-event-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "voting-event"
-        };
+/* 音效 */
+const sounds = {
+    tick: new Audio("https://assets.mixkit.co/sfx/preview/mixkit-fast-small-sweep-transition-166.mp3"),
+    boom: new Audio("https://assets.mixkit.co/sfx/preview/mixkit-deep-impact-echo-hit-321.mp3"),
+    win: new Audio("https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3")
+};
+Object.values(sounds).forEach(s=>s.volume=.6);
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+/* UI state */
+window.ui = { showAnswer:false, isSpeaking:false };
 
-        // 新增 isSpeaking 標記
-        window.ui = { showAnswer: false, lastActiveId: null, mode: 'bar', isSpeaking: false };
-        const colors = ['#818cf8', '#34d399', '#f97316', '#f472b6'];
+/* render */
+const render = () => {
+    if(!window.rawData) return;
 
-        const findAnalysis = (poll) => {
-            let rawText = poll.expertAnswer || poll.expertAnalysis || poll.analysis || "分析資料準備中...";
-            return rawText.replace("專家解密：", "<br/><span class='text-3xl opacity-70 mt-6 block text-indigo-300 font-bold'>—— 專家權威解密 ——</span><br/>");
-        };
+    const active = Object.values(window.rawData).find(p=>p.isActive);
+    if(!active) return;
 
-        const render = () => {
-            if (!window.rawData) return;
-            const activeEntry = Object.entries(window.rawData).find(([id, p]) => p.isActive === true);
-            
-            if (!activeEntry) {
-                document.getElementById('root').innerHTML = `<div class="h-full flex items-center justify-center opacity-20 text-4xl italic">WAITING FOR STAGE...</div>`;
-                return;
-            }
+    const options = Object.values(active.options || {});
 
-            const [id, poll] = activeEntry;
-            if (window.ui.lastActiveId !== id) {
-                window.ui.lastActiveId = id;
-                window.ui.showAnswer = false;
-            }
+    document.getElementById('root').innerHTML = `
+        <div class="question-box px-10 py-6">
+            <h1 class="text-5xl font-black text-center">Q: ${active.question}</h1>
+        </div>
 
-            const options = Object.values(poll.options || {});
-            const total = options.reduce((s, o) => s + (Number(o.voteCount) || 0), 0);
-            const maxVotes = Math.max(...options.map(o => o.voteCount));
-            const analysis = findAnalysis(poll);
-
-            document.getElementById('root').innerHTML = `
-                <div class="flex justify-between items-center shrink-0">
-                    <div class="flex gap-4">
-                        <div class="flex items-center gap-2 bg-red-600/20 px-4 py-1.5 rounded-full border border-red-600/30">
-                            <div class="w-2 h-2 bg-red-600 rounded-full animate-ping"></div>
-                            <span class="text-[10px] font-bold tracking-[0.2em] uppercase text-red-500">Stage Live</span>
-                        </div>
-                        <div class="flex bg-white/5 rounded-full p-1 border border-white/10">
-                            <button onclick="window.setMode('bar')" class="px-4 py-1 rounded-full text-xs transition ${window.ui.mode==='bar'?'bg-indigo-600 shadow-lg shadow-indigo-500/50':'opacity-50'}">長條圖</button>
-                            <button onclick="window.setMode('pie')" class="px-4 py-1 rounded-full text-xs transition ${window.ui.mode==='pie'?'bg-indigo-600 shadow-lg shadow-indigo-500/50':'opacity-50'}">圓餅圖</button>
-                            <button onclick="window.setMode('hidden')" class="px-4 py-1 rounded-full text-xs transition ${window.ui.mode==='hidden'?'bg-slate-700':'opacity-50'}">隱藏數據</button>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xs opacity-40 mr-3 tracking-widest uppercase">Cumulative Votes</span>
-                        <span class="text-5xl font-black tabular-nums text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.4)]">${total}</span>
+        <div class="flex-1 flex flex-col gap-6 h-full">
+            ${options.map((o,i)=>`
+                <div class="flex-1 flex">
+                    <div class="option-card">
+                        <div class="text-6xl font-black mr-6">${String.fromCharCode(65+i)}</div>
+                        <div class="text-4xl font-bold">${o.text}</div>
                     </div>
                 </div>
+            `).join('')}
+        </div>
 
-                <div class="question-box px-16 py-6">
-                    <h1 class="text-4xl md:text-5xl font-bold text-center leading-snug text-white/90">Q: ${poll.question}</h1>
-                </div>
+        <button onclick="toggleReveal(true)" class="h-20 bg-indigo-600 rounded-xl text-2xl font-bold">
+            揭曉
+        </button>
 
-                <div class="flex-1 min-h-0 flex gap-8 mb-4">
-                    ${window.ui.mode !== 'hidden' ? `
-                    <div class="flex-1 bg-white/[0.02] rounded-[2.5rem] border border-white/5 p-10 flex items-center justify-center">
-                        ${window.ui.mode === 'bar' ? renderBar(options, total) : renderPie(options, total)}
-                    </div>
-                    ` : ''}
+        <div id="reveal" class="reveal-overlay">
+            <div class="text-center">
+                <h2 class="text-5xl mb-10">${active.analysis || ''}</h2>
 
-                    <div class="${window.ui.mode === 'hidden' ? 'w-full max-w-4xl mx-auto' : 'w-5/12'} flex flex-col gap-4">
-                        ${options.map((o, i) => {
-                            const isLeader = o.voteCount === maxVotes && maxVotes > 0;
-                            return `
-                            <div class="flex-1 min-h-0" style="animation-delay: ${i*0.1}s">
-                                <div class="option-card ${isLeader && window.ui.mode !== 'hidden' ? 'leading' : ''}">
-                                    <div class="text-4xl font-black mr-6 shrink-0" style="color:${colors[i%4]}">${String.fromCharCode(65+i)}</div>
-                                    <div class="flex-1 text-2xl font-bold truncate">${o.text || o.label}</div>
-                                    ${(isLeader && window.ui.mode !== 'hidden') ? '<div class="text-3xl ml-2 animate-bounce">👑</div>' : ''}
-                                </div>
-                            </div>`
-                        }).join('')}
-                    </div>
-                </div>
-
-                <button onclick="window.toggleReveal(true)" class="shimmer-btn w-full h-24 rounded-3xl text-3xl font-black shadow-[0_20px_50px_rgba(79,70,229,0.3)] tracking-[0.6em] hover:scale-[1.01] active:scale-95 transition-transform">
-                    揭 曉 專 家 權 威 分 析
+                <button id="voiceBtn" onclick="toggleSpeech()" class="voice-btn px-10 py-4 rounded-full">
+                    🔊 朗讀解析
                 </button>
-
-                <div id="reveal-layer" class="reveal-overlay ${window.ui.showAnswer ? 'active' : ''}">
-                    <div class="max-w-6xl text-center px-10 relative z-10">
-                        <p class="text-indigo-400 text-sm tracking-[1.2em] mb-8 uppercase opacity-60 animate-pulse font-bold">Authority Analysis</p>
-                        <h2 class="text-4xl md:text-6xl leading-tight mb-16 analysis-text">「 ${analysis} 」</h2>
-                        
-                        <div class="flex flex-col md:flex-row items-center justify-center gap-6">
-                            <button id="voiceBtn" onclick="window.toggleSpeech()" class="voice-btn px-12 py-5 rounded-full text-indigo-200 font-bold text-xl flex items-center gap-3">
-                                <span>🔊 朗讀解析</span>
-                            </button>
-                            
-                            <button onclick="window.toggleReveal(false)" class="px-20 py-6 rounded-full bg-white text-black font-black text-2xl hover:scale-110 active:scale-95 transition-all shadow-[0_0_50px_rgba(255,255,255,0.4)]">
-                                返回計票現場
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        };
-
-        const renderBar = (options, total) => `
-            <div class="w-full h-full flex items-end justify-around gap-8">
-                ${options.map((o, i) => {
-                    const h = total > 0 ? (o.voteCount / total * 100) : 5;
-                    return `
-                    <div class="flex-1 flex flex-col items-center h-full justify-end">
-                        <span class="mb-4 text-2xl font-black tabular-nums" style="color:${colors[i%4]}">${o.voteCount}</span>
-                        <div class="w-full rounded-t-2xl bar-anim" style="height:${Math.max(h, 5)}%; background:linear-gradient(to top, ${colors[i%4]}dd, ${colors[i%4]}); box-shadow: 0 0 30px ${colors[i%4]}33;"></div>
-                        <span class="mt-6 text-3xl font-black opacity-30">${String.fromCharCode(65+i)}</span>
-                    </div>`
-                }).join('')}
             </div>
-        `;
+        </div>
+    `;
+};
 
-        const renderPie = (options, total) => {
-            let currentPercent = 0;
-            const slices = options.map((o, i) => {
-                const percent = total > 0 ? (o.voteCount / total) : 0.25;
-                const startX = Math.cos(2 * Math.PI * currentPercent);
-                const startY = Math.sin(2 * Math.PI * currentPercent);
-                currentPercent += percent;
-                const endX = Math.cos(2 * Math.PI * currentPercent);
-                const endY = Math.sin(2 * Math.PI * currentPercent);
-                const largeArc = percent > 0.5 ? 1 : 0;
-                return `<path d="M 0 0 L ${startX} ${startY} A 1 1 0 ${largeArc} 1 ${endX} ${endY} Z" fill="${colors[i%4]}" style="opacity:0.9" />`;
-            }).join('');
-            return `<div class="relative w-[400px] h-[400px]"><svg viewBox="-1 -1 2 2" class="transform -rotate-90 w-full h-full drop-shadow-[0_0_40px_rgba(0,0,0,0.5)]">${slices}</svg></div>`;
+/* 勝負判斷 */
+function highlightWinner(){
+    const cards = document.querySelectorAll('.option-card');
+    let max = 0;
+
+    cards.forEach((c,i)=>{
+        const vote = Object.values(window.rawData)[0].options[i].voteCount;
+        if(vote>max) max=vote;
+    });
+
+    cards.forEach((c,i)=>{
+        const vote = Object.values(window.rawData)[0].options[i].voteCount;
+        if(vote===max) c.classList.add('winner');
+        else c.classList.add('loser');
+    });
+}
+
+/* reset */
+function resetOptions(){
+    document.querySelectorAll('.option-card').forEach(c=>{
+        c.classList.remove('winner','loser');
+    });
+}
+
+/* Reveal 節奏 */
+window.toggleReveal = (s)=>{
+    const el = document.getElementById('reveal');
+
+    if(s){
+        el.style.display='flex';
+
+        sounds.tick.play();
+        document.body.classList.add("freeze");
+
+        setTimeout(()=>sounds.tick.play(),800);
+
+        setTimeout(()=>{
+            sounds.boom.play();
+            highlightWinner();
+            el.classList.add('active');
+        },1200);
+
+        setTimeout(()=>{
+            sounds.win.play();
+        },2000);
+
+    }else{
+        el.classList.remove('active');
+        resetOptions();
+        document.body.classList.remove("freeze");
+        el.style.display='none';
+    }
+};
+
+/* 語音 */
+window.toggleSpeech = ()=>{
+    const btn=document.getElementById('voiceBtn');
+
+    if(window.ui.isSpeaking){
+        speechSynthesis.cancel();
+        window.ui.isSpeaking=false;
+        btn.innerHTML="🔊 朗讀解析";
+    }else{
+        const text = Object.values(window.rawData)[0].analysis || "";
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang="zh-TW";
+
+        u.onend=()=>{
+            window.ui.isSpeaking=false;
+            btn.innerHTML="🔊 朗讀解析";
         };
 
-        window.setMode = (m) => { window.ui.mode = m; render(); };
+        speechSynthesis.speak(u);
+        window.ui.isSpeaking=true;
+        btn.innerHTML="⏹ 停止";
+    }
+};
 
-        // 修正後的語音切換開關
-        window.toggleSpeech = () => {
-            const btn = document.getElementById('voiceBtn');
-            
-            if (window.ui.isSpeaking) {
-                // 如果正在播放中，執行停止
-                window.speechSynthesis.cancel();
-                window.ui.isSpeaking = false;
-                btn.innerHTML = '<span>🔊 朗讀解析</span>';
-                btn.classList.remove('speaking');
-            } else {
-                // 如果沒在播放，執行開始
-                const activeEntry = Object.values(window.rawData).find(p => p.isActive);
-                const text = activeEntry?.expertAnswer || activeEntry?.expertAnalysis || activeEntry?.analysis || "";
-                
-                if (text) {
-                    window.speechSynthesis.cancel(); 
-                    const utterance = new SpeechSynthesisUtterance(text.replace(/<[^>]*>/g, ''));
-                    utterance.lang = 'zh-TW';
-                    utterance.rate = 0.95;
-                    
-                    utterance.onend = () => {
-                        window.ui.isSpeaking = false;
-                        btn.innerHTML = '<span>🔊 朗讀解析</span>';
-                        btn.classList.remove('speaking');
-                    };
-
-                    window.speechSynthesis.speak(utterance);
-                    window.ui.isSpeaking = true;
-                    btn.innerHTML = '<span>⏹ 停止朗讀</span>';
-                    btn.classList.add('speaking');
-                }
-            }
-        };
-
-        window.toggleReveal = (s) => {
-            window.ui.showAnswer = s;
-            const el = document.getElementById('reveal-layer');
-            if (s) { 
-                el.style.display = 'flex'; 
-                setTimeout(() => el.classList.add('active'), 50);
-            } else { 
-                el.classList.remove('active'); 
-                window.speechSynthesis.cancel(); // 關閉視窗強制停止聲音
-                window.ui.isSpeaking = false;
-                setTimeout(() => el.style.display = 'none', 600); 
-            }
-        };
-
-        onValue(ref(db, 'polls'), (snap) => {
-            window.rawData = snap.val();
-            render();
-        });
-    </script>
+/* Firebase */
+onValue(ref(db,'polls'),snap=>{
+    window.rawData = snap.val();
+    render();
+});
+</script>
 </body>
 </html>
